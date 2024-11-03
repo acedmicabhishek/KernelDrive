@@ -25,5 +25,6 @@ package() {
     cd "$srcdir/KernelDrive/build"
     
     install -Dm755 KernelDrive "$pkgdir/usr/bin/KernelDrive"
+    install -Dm644 "$srcdir/ob.ttf" "$pkgdir/usr/bin/ob.ttf"
     install -Dm644 "$srcdir/ob.ttf" "$pkgdir/usr/share/fonts/ob.ttf" 
 }
