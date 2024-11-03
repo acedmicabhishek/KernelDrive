@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <thread>
 #include <chrono>
+#include <filesystem>
 
 const int WINDOW_WIDTH = 300;
 const int WINDOW_HEIGHT = 400;
@@ -27,6 +28,16 @@ std::string getCurrentCpuGovernor() {
         std::cerr << "Failed to open governor file." << std::endl;
     }
     return governor;
+}
+
+// Function to load font with fallback
+TTF_Font* loadFont(const std::string& fontName, int fontSize) {
+    // Check current directory first
+    if (std::filesystem::exists(fontName)) {
+        return TTF_OpenFont(fontName.c_str(), fontSize);
+    }
+    std::string fallbackPath = "/usr/share/fonts/" + fontName;
+    return TTF_OpenFont(fallbackPath.c_str(), fontSize);
 }
 
 void drawRoundedButton(SDL_Renderer* renderer, TTF_Font* font, const char* text, int x, int y, int width, int height, SDL_Color bgColor, SDL_Color textColor, SDL_Color borderColor) {
@@ -67,7 +78,7 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow("Kernel Drive", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    TTF_Font* font = TTF_OpenFont("ob.ttf", 18);
+    TTF_Font* font = loadFont("ob.ttf", 18);
     if (!font) {
         std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
         SDL_DestroyRenderer(renderer);
@@ -111,10 +122,8 @@ int main(int argc, char* argv[]) {
         SDL_Color labelColor = { 0, 0, 0, 255 };
 
         drawText(renderer, font, "MODE", 50, 20, labelColor);
-
         drawRoundedButton(renderer, font, "BATTERY", 50, 50, 200, 60, batteryButtonColor, textColor, borderColor);
         drawRoundedButton(renderer, font, "POWER", 50, 130, 200, 60, performanceButtonColor, textColor, borderColor);
-
         drawText(renderer, font, "STATUS", 50, 260, labelColor);
 
         std::string governorText = currentGovernor;
