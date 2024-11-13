@@ -1,7 +1,7 @@
 # Kernel Drive
 
 Kernel Drive is a lightweight application for managing CPU governors on Linux systems. It provides a simple graphical interface to switch between different CPU performance modes.
-![Preview](https://github.com/acedmicabhishek/KernelDrive/blob/main/preview.png0
+![Preview](https://github.com/acedmicabhishek/KernelDrive/blob/main/preview.png)
 ## Features
 
 - Change CPU governors to optimize performance or power consumption.
