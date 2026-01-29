@@ -13,6 +13,7 @@ libadwaita_dep = dependency('libadwaita-1')
 
 sources = files(
   'src/main.cpp',
+  'src/ui/window.cpp',
 )
 
 executable('kerneldrive',
