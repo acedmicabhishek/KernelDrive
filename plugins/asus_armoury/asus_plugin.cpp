@@ -2,6 +2,7 @@
 #include "backend/modes.h"
 #include "backend/fans.h"
 #include "backend/battery.h"
+#include "backend/display.h"
 #include <gtk/gtk.h>
 #include <adwaita.h>
 #include <iostream>
@@ -90,6 +91,7 @@ public:
              adw_spin_row_set_value(ADW_SPIN_ROW(limit_row), current_limit);
         }
 
+        // Apply on change
         g_signal_connect(limit_row, "notify::value", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
              int val = (int)adw_spin_row_get_value(ADW_SPIN_ROW(row));
              std::cout << "[AsusPlugin] Setting charge limit to: " << val << "%" << std::endl;
@@ -99,6 +101,65 @@ public:
                  std::cerr << "[AsusPlugin] Failed to set limit." << std::endl;
              }
         }), NULL);
+
+        // Display
+        GtkWidget* disp_group = adw_preferences_group_new();
+        adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(disp_group), "Display");
+        adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(disp_group));
+
+        // 1. Refresh Rate 
+        GtkWidget* rate_row = adw_action_row_new();
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(rate_row), "Refresh Rate");
+        adw_action_row_set_subtitle(ADW_ACTION_ROW(rate_row), "Control screen smoothness.");
+        
+        GtkWidget* rate_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+        
+        std::vector<int> rates = AsusDisplay::get_available_refresh_rates();
+        for (int hz : rates) {
+             GtkWidget* btn = gtk_button_new_with_label((std::to_string(hz) + "Hz").c_str());
+             g_signal_connect(btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer data) {
+                 int h = GPOINTER_TO_INT(data);
+                 AsusDisplay::set_refresh_rate(h);
+             }), GINT_TO_POINTER(hz));
+             gtk_box_append(GTK_BOX(rate_box), btn);
+        }
+        adw_action_row_add_suffix(ADW_ACTION_ROW(rate_row), rate_box);
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(disp_group), rate_row);
+
+        // 2. Panel Overdrive
+        GtkWidget* od_row = adw_switch_row_new();
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(od_row), "Panel Overdrive");
+        
+        if (AsusDisplay::is_overdrive_supported()) {
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(od_row), "Reduces ghosting but may cause overshoot.");
+            adw_switch_row_set_active(ADW_SWITCH_ROW(od_row), AsusDisplay::get_panel_overdrive());
+            g_signal_connect(od_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
+                AsusDisplay::set_panel_overdrive(active);
+            }), NULL);
+        } else {
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(od_row), "Not supported by your device.");
+            gtk_widget_set_sensitive(od_row, FALSE);
+        }
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(disp_group), od_row);
+
+        // 3. Panel Power Saver (MiniLED)
+        GtkWidget* miniled_row = adw_switch_row_new();
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(miniled_row), "Panel Power Saver");
+        
+        if (AsusDisplay::is_miniled_supported()) {
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(miniled_row), "Optimizes MiniLED zones for power saving.");
+            adw_switch_row_set_active(ADW_SWITCH_ROW(miniled_row), AsusDisplay::get_miniled_mode());
+            g_signal_connect(miniled_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
+                AsusDisplay::set_miniled_mode(active);
+            }), NULL);
+        } else {
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(miniled_row), "Not supported by your device.");
+            gtk_widget_set_sensitive(miniled_row, FALSE);
+        }
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(disp_group), miniled_row);
+
         update_status_text(status_row, AsusModes::get_mode());
 
         GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);

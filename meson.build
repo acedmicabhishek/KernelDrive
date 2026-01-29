@@ -44,7 +44,8 @@ shared_module('asus_armoury',
     'plugins/asus_armoury/asus_plugin.cpp', 
     'plugins/asus_armoury/backend/modes.cpp',
     'plugins/asus_armoury/backend/fans.cpp',
-    'plugins/asus_armoury/backend/battery.cpp'
+    'plugins/asus_armoury/backend/battery.cpp',
+    'plugins/asus_armoury/backend/display.cpp'
   ],
   dependencies: [gtk_dep, libadwaita_dep],
   install: true,
