@@ -1,4 +1,8 @@
 #include "window.h"
+#include "../core/plugin_manager.h"
+#include "pages/power_page.h"
+#include "pages/input_page.h"
+#include "pages/display_page.h"
 
 struct _KdMainWindow {
     AdwApplicationWindow parent_instance;
@@ -15,19 +19,50 @@ static void kd_main_window_class_init(KdMainWindowClass* klass) {
     G_OBJECT_CLASS(klass)->dispose = kd_main_window_dispose;
 }
 
-static void kd_main_window_init(KdMainWindow* self) {
+static void on_sidebar_row_activated(AdwActionRow* row, KdMainWindow* self) {
+    const char* page_id = (const char*)g_object_get_data(G_OBJECT(row), "page-id");
+    KdPlugin* plugin = (KdPlugin*)g_object_get_data(G_OBJECT(row), "plugin-ptr");
 
+    const char* title = adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row));
+    g_print("Sidebar row activated: %s (ID: %s)\n", title, page_id ? page_id : "null");
+
+    GtkWidget* content_widget = NULL;
+
+    if (plugin) {
+        content_widget = plugin->create_config_widget();
+    } else if (g_strcmp0(page_id, "power") == 0) {
+        content_widget = kd_power_page_new();
+    } else if (g_strcmp0(page_id, "input") == 0) {
+        content_widget = kd_input_page_new();
+    } else if (g_strcmp0(page_id, "display") == 0) {
+        content_widget = kd_display_page_new();
+    } else {
+        content_widget = adw_status_page_new();
+        adw_status_page_set_title(ADW_STATUS_PAGE(content_widget), title);
+        adw_status_page_set_description(ADW_STATUS_PAGE(content_widget), "Implementation ongoing");
+        adw_status_page_set_icon_name(ADW_STATUS_PAGE(content_widget), "applications-system-symbolic");
+    }
+
+    if (content_widget) {
+        if (!ADW_IS_NAVIGATION_PAGE(content_widget)) {
+            GtkWidget* wrapper = GTK_WIDGET(adw_navigation_page_new(content_widget, title));
+            content_widget = wrapper;
+        }
+        adw_navigation_split_view_set_content(self->split_view, ADW_NAVIGATION_PAGE(content_widget));
+    }
+}
+
+static void kd_main_window_init(KdMainWindow* self) {
     gtk_window_set_default_size(GTK_WINDOW(self), 1100, 700);
     gtk_window_set_title(GTK_WINDOW(self), "KernelDrive");
 
     self->split_view = ADW_NAVIGATION_SPLIT_VIEW(adw_navigation_split_view_new());
-    gtk_window_set_child(GTK_WINDOW(self), GTK_WIDGET(self->split_view));
+    adw_application_window_set_content(ADW_APPLICATION_WINDOW(self), GTK_WIDGET(self->split_view));
 
-    AdwNavigationPage* sidebar_page = ADW_NAVIGATION_PAGE(adw_navigation_page_new(NULL, "Sidebar"));
-    adw_navigation_split_view_set_sidebar(self->split_view, sidebar_page);
-
+    // stupid sidebar
     GtkWidget* sidebar_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    adw_navigation_page_set_child(sidebar_page, sidebar_box);
+    AdwNavigationPage* sidebar_page = ADW_NAVIGATION_PAGE(adw_navigation_page_new(sidebar_box, "Sidebar"));
+    adw_navigation_split_view_set_sidebar(self->split_view, sidebar_page);
 
     GtkWidget* sidebar_header = adw_header_bar_new();
     gtk_box_append(GTK_BOX(sidebar_box), sidebar_header);
@@ -39,22 +74,40 @@ static void kd_main_window_init(KdMainWindow* self) {
     GtkWidget* nav_group = adw_preferences_group_new();
     adw_preferences_page_add(ADW_PREFERENCES_PAGE(sidebar_content), ADW_PREFERENCES_GROUP(nav_group));
 
-    const char* items[] = {"Power", "Input", "Display", "Plugins", NULL};
-    const char* icons[] = {"system-shutdown-symbolic", "input-keyboard-symbolic", "video-display-symbolic", "application-x-addon-symbolic", NULL};
-
-    for (int i = 0; items[i] != NULL; i++) {
+    auto add_row = [&](const char* title, const char* icon_name, const char* id, KdPlugin* plugin = nullptr) {
         GtkWidget* row = adw_action_row_new();
-        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), items[i]);
-        GtkWidget* icon = gtk_image_new_from_icon_name(icons[i]);
-        adw_action_row_add_prefix(ADW_ACTION_ROW(row), icon);
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
+        if (icon_name) {
+            GtkWidget* icon = gtk_image_new_from_icon_name(icon_name);
+            adw_action_row_add_prefix(ADW_ACTION_ROW(row), icon);
+        }
+        
+        gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
+        
+        if (id) g_object_set_data(G_OBJECT(row), "page-id", (gpointer)id);
+        if (plugin) g_object_set_data(G_OBJECT(row), "plugin-ptr", plugin);
+
+        g_signal_connect(row, "activated", G_CALLBACK(on_sidebar_row_activated), self);
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(nav_group), GTK_WIDGET(row));
+    };
+
+    // Built-in Features
+    add_row("Power", "system-shutdown-symbolic", "power");
+    add_row("Input", "input-keyboard-symbolic", "input");
+    add_row("Display", "video-display-symbolic", "display");
+
+    // Load Plugins
+    PluginManager::get().load_from_directory("build"); 
+    PluginManager::get().load_from_directory("/usr/lib/kerneldrive/plugins"); 
+
+    for (const auto& plugin : PluginManager::get().get_plugins()) {
+         add_row(plugin->get_name().c_str(), "application-x-addon-symbolic", "plugin", plugin.get());
     }
 
-    AdwNavigationPage* content_page = ADW_NAVIGATION_PAGE(adw_navigation_page_new(NULL, "Content"));
-    adw_navigation_split_view_set_content(self->split_view, content_page);
-
+    // Main initial screen 
     GtkWidget* content_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-    adw_navigation_page_set_child(content_page, content_box);
+    AdwNavigationPage* content_page = ADW_NAVIGATION_PAGE(adw_navigation_page_new(content_box, "Content"));
+    adw_navigation_split_view_set_content(self->split_view, content_page);
 
     GtkWidget* content_header = adw_header_bar_new();
     gtk_box_append(GTK_BOX(content_box), content_header);
