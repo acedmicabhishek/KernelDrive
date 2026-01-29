@@ -28,7 +28,7 @@ executable('kerneldrive',
   sources,
   dependencies: [gtk_dep, libadwaita_dep, dl_dep],
   install: true,
-  export_dynamic: true, # Important for plugins to see symbols if needed
+  export_dynamic: true,
 )
 
 # Plugins

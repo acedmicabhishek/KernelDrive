@@ -62,13 +62,16 @@ public:
             FanData* d = static_cast<FanData*>(user_data);
             if (!GTK_IS_WIDGET(d->cpu)) return G_SOURCE_REMOVE;
 
-            auto [cpu_rpm, gpu_rpm] = AsusFans::get_fan_speeds();
+            AsusFans::FanMetrics m = AsusFans::get_metrics();
             
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%d RPM", cpu_rpm);
+            char buf[64];
+            
+            if (m.cpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.cpu_rpm, m.cpu_temp);
+            else snprintf(buf, sizeof(buf), "%d RPM", m.cpu_rpm);
             adw_action_row_set_subtitle(ADW_ACTION_ROW(d->cpu), buf);
 
-            snprintf(buf, sizeof(buf), "%d RPM", gpu_rpm);
+            if (m.gpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.gpu_rpm, m.gpu_temp);
+            else snprintf(buf, sizeof(buf), "%d RPM", m.gpu_rpm);
             adw_action_row_set_subtitle(ADW_ACTION_ROW(d->gpu), buf);
 
             return G_SOURCE_CONTINUE;
