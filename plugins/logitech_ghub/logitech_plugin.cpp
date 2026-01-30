@@ -88,8 +88,13 @@ public:
                 const char* rates[] = {"1000 Hz", "500 Hz", "250 Hz", "125 Hz", nullptr};
                 GtkStringList* rate_list = gtk_string_list_new(rates);
                 adw_combo_row_set_model(ADW_COMBO_ROW(rate_row), G_LIST_MODEL(rate_list));
+                // Default to 1000Hz (Index 0) for now
+                int rate_idx = 0;
+                if (dev.current_rate_ms == 2) rate_idx = 1;
+                else if (dev.current_rate_ms == 4) rate_idx = 2;
+                else if (dev.current_rate_ms == 8) rate_idx = 3;
                 
-                adw_combo_row_set_selected(ADW_COMBO_ROW(rate_row), 0);
+                adw_combo_row_set_selected(ADW_COMBO_ROW(rate_row), rate_idx);
 
                 CbData* cbd_rate = new CbData{dev.path};
                 g_object_set_data_full(G_OBJECT(rate_row), "cbd", cbd_rate, [](gpointer d) { delete (CbData*)d; });

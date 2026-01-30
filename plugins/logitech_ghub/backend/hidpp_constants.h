@@ -14,8 +14,16 @@
 #define CMD_ROOT_GET_FEATURE                0x00 // Func 0
 #define CMD_FEATURE_SET_GET_FEATURE_ID      0x10 // Func 1 (GetCount is Func 0)
 
-#define CMD_ADJUSTABLE_DPI_SET_SENSOR_DPI   0x30 // Func 3? ig
-#define CMD_ADJUSTABLE_REPORT_RATE_SET_REPORT_RATE 0x20 // Func 2? ig
+// 0x2201 Adjustable DPI
+#define CMD_ADJUSTABLE_DPI_GET_SENSOR_COUNT 0x00 // Func 0
+#define CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI_LIST 0x10 // Func 1 (Hypothesis)
+#define CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI   0x20 // Func 2
+#define CMD_ADJUSTABLE_DPI_SET_SENSOR_DPI   0x30 // Func 3
+
+// 0x8060 Adjustable Report Rate
+#define CMD_ADJUSTABLE_REPORT_RATE_GET_REPORT_RATE 0x10 // Func 1 (Hypothesis)
+#define CMD_ADJUSTABLE_REPORT_RATE_SET_REPORT_RATE 0x20 // Func 2
 
 #define CMD_COLOR_LED_EFFECTS_GET_INFO       0x00
-#define CMD_COLOR_LED_EFFECTS_SET_ZONE_EFFECT 0x30 // Guessing, Need to look ig.
+
+#define CMD_COLOR_LED_EFFECTS_SET_ZONE_EFFECT 0x30

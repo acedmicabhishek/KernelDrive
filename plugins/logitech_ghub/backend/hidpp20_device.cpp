@@ -100,6 +100,86 @@ uint8_t Hidpp20Device::get_feature_index(uint16_t feature_id) {
     return 0;
 }
 
+int Hidpp20Device::get_max_dpi() {
+    if (!is_connected()) connect();
+    
+    uint8_t feat_idx = get_feature_index(HIDPP_PAGE_ADJUSTABLE_DPI);
+    if (feat_idx == 0) return 0;
+
+    // GetDpiList (Func 1 = 0x10)
+    std::vector<unsigned char> cmd(7, 0x00);
+    cmd[0] = 0x10;
+    cmd[1] = 0xFF;
+    cmd[2] = feat_idx;
+    cmd[3] = CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI_LIST;
+    cmd[4] = 0x00;
+    
+    auto resp = m_driver.send_recv(cmd);
+    // Response: [0x10][FF][Feat][Func][Index][Val1_MSB][Val1_LSB][Val2_MSB][Val2_LSB]...
+    if (resp.size() >= 7 && resp[0] == 0x10 && resp[2] == feat_idx && resp[3] == CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI_LIST) {
+        // Each value is 2 bytes.
+        int max_dpi = 0;
+        for (size_t i = 5; i < resp.size() - 1; i += 2) {
+            int val = (resp[i] << 8) | resp[i+1];
+            if (val == 0) break;
+            if (val > 0xE000) {
+            } else {
+                 if (val > max_dpi) max_dpi = val;
+            }
+        }
+        return max_dpi;
+    }
+    
+    return 0;
+}
+
+int Hidpp20Device::get_dpi() {
+    if (!is_connected()) connect();
+    
+    uint8_t feat_idx = get_feature_index(HIDPP_PAGE_ADJUSTABLE_DPI);
+    if (feat_idx == 0) return 0;
+
+    // GetSensorDpi (Func 2 = 0x20)
+    // Param 0: Sensor Index (0)
+    std::vector<unsigned char> cmd(7, 0x00);
+    cmd[0] = 0x10;
+    cmd[1] = 0xFF;
+    cmd[2] = feat_idx;
+    cmd[3] = CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI; // 0x20
+    cmd[4] = 0x00; // Sensor 0
+    
+    auto resp = m_driver.send_recv(cmd);
+    // Response: [0x10][FF][Feat][Func][SensorIdx][DPI_MSB][DPI_LSB][DefaultDPI_MSB][DefaultDPI_LSB]
+    if (resp.size() >= 7 && resp[0] == 0x10 && resp[2] == feat_idx && resp[3] == CMD_ADJUSTABLE_DPI_GET_SENSOR_DPI) {
+        int dpi = (resp[5] << 8) | resp[6];
+        return dpi;
+    }
+    
+    return 0;
+}
+
+int Hidpp20Device::get_polling_rate() {
+    if (!is_connected()) connect();
+    
+    uint8_t feat_idx = get_feature_index(HIDPP_PAGE_ADJUSTABLE_REPORT_RATE);
+    if (feat_idx == 0) return 0;
+
+    // GetReportRate (Func 1 = 0x10)
+    std::vector<unsigned char> cmd(7, 0x00);
+    cmd[0] = 0x10;
+    cmd[1] = 0xFF;
+    cmd[2] = feat_idx;
+    cmd[3] = CMD_ADJUSTABLE_REPORT_RATE_GET_REPORT_RATE; // 0x10
+    
+    auto resp = m_driver.send_recv(cmd);
+    // Response: [0x10][FF][Feat][Func][Rate]
+    if (resp.size() >= 5 && resp[0] == 0x10 && resp[2] == feat_idx && resp[3] == CMD_ADJUSTABLE_REPORT_RATE_GET_REPORT_RATE) {
+        return resp[4];
+    }
+    
+    return 0;
+}
+
 bool Hidpp20Device::set_dpi(int dpi) {
     if (!is_connected()) connect();
     

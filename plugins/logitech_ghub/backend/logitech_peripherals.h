@@ -10,6 +10,7 @@ namespace Logitech {
         int current_dpi = 0;
         int max_dpi = 25600;
         std::vector<int> dpi_levels;
+        int current_rate_ms;
     };
 
     void init();

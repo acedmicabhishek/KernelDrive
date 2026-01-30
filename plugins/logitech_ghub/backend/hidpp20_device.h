@@ -21,7 +21,9 @@ public:
     bool is_connected() const;
 
     uint8_t get_feature_index(uint16_t feature_id);
-    
+    int get_dpi();
+    int get_max_dpi();
+    int get_polling_rate();
     bool set_dpi(int dpi);
     bool set_polling_rate(int ms);
     

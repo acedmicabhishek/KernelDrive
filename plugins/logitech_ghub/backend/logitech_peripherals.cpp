@@ -29,8 +29,26 @@ namespace Logitech {
                 std::string product(d.product.begin(), d.product.end());
                 dev.name = product.empty() ? "Logitech Device" : product;
                 
-                dev.current_dpi = 1600;
-                dev.max_dpi = 25600; 
+                Hidpp20Device hdev(d.path, dev.name);
+                if (hdev.connect()) {
+                    int dpi = hdev.get_dpi();
+                    if (dpi > 0) dev.current_dpi = dpi;
+                    else dev.current_dpi = 1600; 
+                    
+                    int rate = hdev.get_polling_rate();
+                    if (rate > 0) dev.current_rate_ms = rate; 
+                    else dev.current_rate_ms = 1; 
+                    
+                    int max_dpi = hdev.get_max_dpi();
+                    if (max_dpi > 0) dev.max_dpi = max_dpi;
+                    else dev.max_dpi = 25600;
+                    
+                } else {
+                     dev.current_dpi = 1600;
+                     dev.current_rate_ms = 1;
+                     dev.max_dpi = 25600;
+                }
+
                 dev.dpi_levels = {400, 800, 1600, 3200};
                 
                 out.push_back(dev);
