@@ -10,6 +10,7 @@ gnome = import('gnome')
 
 gtk_dep = dependency('gtk4')
 libadwaita_dep = dependency('libadwaita-1')
+hidapi_dep = dependency('hidapi-hidraw')
 
 sources = files(
   'src/main.cpp',
@@ -71,9 +72,10 @@ executable('optimus_helper',
 shared_module('logitech_ghub',
   [
     'plugins/logitech_ghub/logitech_plugin.cpp',
-    'plugins/logitech_ghub/backend/logitech_peripherals.cpp'
+    'plugins/logitech_ghub/backend/logitech_peripherals.cpp',
+    'plugins/logitech_ghub/backend/hidpp_driver.cpp'
   ],
-  dependencies: [gtk_dep, libadwaita_dep],
+  dependencies: [gtk_dep, libadwaita_dep, hidapi_dep],
   install: true,
   install_dir: get_option('libdir') / 'kerneldrive/plugins'
 )

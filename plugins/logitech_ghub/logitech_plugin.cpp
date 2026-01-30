@@ -1,71 +1,91 @@
 #include "../../src/core/plugin_interface.h"
 #include "backend/logitech_peripherals.h"
-#include <gtk/gtk.h>
 #include <adwaita.h>
 #include <string>
 
 class LogitechPlugin : public KdPlugin {
 public:
-    std::string get_name() const override {
-        return "Logitech G-Hub";
-    }
-
-    std::string get_slug() const override {
-        return "logitech-ghub";
-    }
+    std::string get_name() const override { return "Logitech G-Hub"; }
+    std::string get_slug() const override { return "logitech_ghub"; }
 
     bool init() override {
-        return LogitechPeripherals::is_supported();
+        Logitech::init();
+        return true; 
     }
 
     GtkWidget* create_config_widget() override {
-        GtkWidget* page = adw_preferences_page_new();
-        GtkWidget* group = adw_preferences_group_new();
-        adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(group), "Mouse Settings");
-        adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(group));
+        AdwStatusPage* page = ADW_STATUS_PAGE(adw_status_page_new());
+        adw_status_page_set_title(page, "Logitech G-Hub");
+        adw_status_page_set_description(page, "Manage your Logitech peripherals.");
+        adw_status_page_set_icon_name(page, "input-mouse-symbolic");
 
-        GtkWidget* dpi_row = adw_action_row_new();
-        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(dpi_row), "DPI Sensitivity");
-        
-        GtkWidget* dpi_spin = gtk_spin_button_new_with_range(100, 25600, 50);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(dpi_spin), LogitechPeripherals::get_dpi());
-        
-        g_signal_connect(dpi_spin, "value-changed", G_CALLBACK(+[](GtkSpinButton* btn, gpointer) {
-            int val = gtk_spin_button_get_value_as_int(btn);
-            LogitechPeripherals::set_dpi(val);
-        }), NULL);
-        
-        adw_action_row_add_suffix(ADW_ACTION_ROW(dpi_row), dpi_spin);
-        adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), dpi_row);
+        GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 24);
+        gtk_widget_set_valign(box, GTK_ALIGN_START);
+        gtk_widget_set_margin_top(box, 32);
+        gtk_widget_set_margin_bottom(box, 32);
+        gtk_widget_set_margin_start(box, 24);
+        gtk_widget_set_margin_end(box, 24);
 
-        GtkWidget* rate_row = adw_combo_row_new();
-        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(rate_row), "Polling Rate");
-        
-        const char* rates[] = {"125 Hz", "250 Hz", "500 Hz", "1000 Hz", NULL};
-        GtkStringList* rate_list = gtk_string_list_new(rates);
-        adw_combo_row_set_model(ADW_COMBO_ROW(rate_row), G_LIST_MODEL(rate_list));
+        adw_status_page_set_child(page, box);
 
-        int current = LogitechPeripherals::get_polling_rate();
-        int idx = 3;
-        if (current == 125) idx = 0;
-        else if (current == 250) idx = 1;
-        else if (current == 500) idx = 2;
-        
-        adw_combo_row_set_selected(ADW_COMBO_ROW(rate_row), idx);
+        GtkWidget* scan_btn = gtk_button_new_with_label("Scan for Devices");
+        gtk_widget_set_halign(scan_btn, GTK_ALIGN_CENTER);
+        gtk_widget_add_css_class(scan_btn, "pill");
+        gtk_box_append(GTK_BOX(box), scan_btn);
 
-        g_signal_connect(rate_row, "notify::selected", G_CALLBACK(+[](AdwComboRow* row, GParamSpec*, gpointer) {
-            guint selected = adw_combo_row_get_selected(row);
-            int rate = 1000;
-            if (selected == 0) rate = 125;
-            else if (selected == 1) rate = 250;
-            else if (selected == 2) rate = 500;
-            
-            LogitechPeripherals::set_polling_rate(rate);
-        }), NULL);
+        GtkWidget* device_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+        gtk_box_append(GTK_BOX(box), device_list);
 
-        adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), rate_row);
+        g_signal_connect(scan_btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer data) {
+            GtkWidget* list = GTK_WIDGET(data);
 
-        return page;
+            GtkWidget* child = gtk_widget_get_first_child(list);
+            while (child) {
+                GtkWidget* next = gtk_widget_get_next_sibling(child);
+                gtk_box_remove(GTK_BOX(list), child);
+                child = next;
+            }
+
+            auto devices = Logitech::get_devices();
+            if (devices.empty()) {
+                 GtkWidget* lbl = gtk_label_new("No Logitech devices found (check permissions?).");
+                 gtk_widget_add_css_class(lbl, "dim-label");
+                 gtk_box_append(GTK_BOX(list), lbl);
+            }
+
+            for (const auto& dev : devices) {
+                GtkWidget* group = adw_preferences_group_new();
+                std::string title = dev.name;
+                if (dev.path.find("/dev/hidraw") != std::string::npos) {
+                    title += " (" + dev.path + ")";
+                }
+                adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(group), title.c_str());
+                
+                GtkWidget* dpi_row = adw_action_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(dpi_row), "DPI Sensitivity");
+                
+                GtkWidget* spin = gtk_spin_button_new_with_range(100, dev.max_dpi, 50);
+                gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin), dev.current_dpi);
+                gtk_widget_set_valign(spin, GTK_ALIGN_CENTER);
+                
+                struct CbData { std::string path; };
+                CbData* cbd = new CbData{dev.path};
+                g_object_set_data_full(G_OBJECT(spin), "cbd", cbd, [](gpointer d) { delete (CbData*)d; });
+
+                g_signal_connect(spin, "value-changed", G_CALLBACK(+[](GtkSpinButton* btn, gpointer) {
+                    CbData* d = (CbData*)g_object_get_data(G_OBJECT(btn), "cbd");
+                    int val = gtk_spin_button_get_value_as_int(btn);
+                    Logitech::set_dpi(d->path, val);
+                }), nullptr);
+
+                adw_action_row_add_suffix(ADW_ACTION_ROW(dpi_row), spin);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), dpi_row);
+                
+                gtk_box_append(GTK_BOX(list), group);
+            }
+        }), device_list);
+
+        return GTK_WIDGET(page);
     }
 };
 

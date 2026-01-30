@@ -1,14 +1,20 @@
 #pragma once
-
-#include <vector>
 #include <string>
-#include <optional>
+#include <vector>
 
-class LogitechPeripherals {
-public:
-    static bool set_dpi(int dpi);
-    static int get_dpi();
-    static bool set_polling_rate(int rate_hz);
-    static int get_polling_rate();
-    static bool is_supported();
-};
+namespace Logitech {
+    
+    struct Device {
+        std::string path;
+        std::string name;
+        int current_dpi = 0;
+        int max_dpi = 25600;
+        std::vector<int> dpi_levels;
+    };
+
+    void init();
+    void shutdown();
+
+    std::vector<Device> get_devices();
+    bool set_dpi(const std::string& path, int dpi);
+}
