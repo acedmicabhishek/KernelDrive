@@ -52,11 +52,20 @@ shared_module('asus_armoury',
     'plugins/asus_armoury/backend/brightness.cpp',
     'plugins/asus_armoury/backend/keyboard.cpp',
     'plugins/asus_armoury/backend/gpu.cpp',
-    'plugins/asus_armoury/backend/visuals.cpp'
+    'plugins/asus_armoury/backend/gpu_mux.cpp',
+    'plugins/asus_armoury/backend/visuals.cpp',
+    'plugins/asus_armoury/backend/fan_control.cpp',
+    'plugins/asus_armoury/ui/notification.cpp',
   ],
   dependencies: [gtk_dep, libadwaita_dep],
   install: true,
   install_dir: get_option('libdir') / 'kerneldrive/plugins'
+)
+
+executable('optimus_helper',
+  'tools/optimus_helper.cpp',
+  install: true,
+  install_dir: get_option('bindir')
 )
 
 shared_module('logitech_ghub',

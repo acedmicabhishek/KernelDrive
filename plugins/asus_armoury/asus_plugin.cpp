@@ -11,6 +11,9 @@
 #include "backend/keyboard.h"
 #include "backend/visuals.h"
 #include "backend/gpu.h"
+#include "backend/gpu_mux.h"
+#include "backend/fan_control.h"
+#include "ui/notification.h"
 #include <gtk/gtk.h>
 #include <adwaita.h>
 #include <iostream>
@@ -64,7 +67,56 @@ public:
         GtkWidget* adv_switch = gtk_switch_new();
         gtk_widget_set_valign(adv_switch, GTK_ALIGN_CENTER);
         adw_action_row_add_suffix(ADW_ACTION_ROW(adv_row), adv_switch);
+        adw_action_row_add_suffix(ADW_ACTION_ROW(adv_row), adv_switch);
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), adv_row);
+
+        // Manual Fan Control
+        if (AsusFanControl::is_supported()) {
+            GtkWidget* manual_group = adw_preferences_group_new();
+            adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(manual_group), "Manual Fan Control");
+            adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(manual_group));
+
+            GtkWidget* manual_row = adw_switch_row_new();
+            adw_preferences_row_set_title(ADW_PREFERENCES_ROW(manual_row), "Enable Manual Mode");
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(manual_row), "Override BIOS fan curves.");
+            
+            adw_switch_row_set_active(ADW_SWITCH_ROW(manual_row), AsusFanControl::get_manual_mode());
+            
+            GtkWidget* speed_row = adw_action_row_new();
+            adw_preferences_row_set_title(ADW_PREFERENCES_ROW(speed_row), "Fan Speed");
+            GtkWidget* speed_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 100, 5);
+            gtk_widget_set_hexpand(speed_scale, TRUE);
+            gtk_range_set_value(GTK_RANGE(speed_scale), AsusFanControl::get_fan_speed());
+            adw_action_row_add_suffix(ADW_ACTION_ROW(speed_row), speed_scale);
+            
+            gtk_widget_set_visible(speed_row, AsusFanControl::get_manual_mode());
+            
+            g_signal_connect(manual_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer data) {
+                 bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
+                 GtkWidget* s_row = GTK_WIDGET(data);
+                 
+                 if (AsusFanControl::set_manual_mode(active)) {
+                     gtk_widget_set_visible(s_row, active);
+                 } else {
+                     g_signal_handlers_block_by_func(row, (gpointer)G_CALLBACK(+[](GObject* r, GParamSpec*, gpointer d){}), data);
+                     adw_switch_row_set_active(ADW_SWITCH_ROW(row), !active);
+                     g_signal_handlers_unblock_by_func(row, (gpointer)G_CALLBACK(+[](GObject* r, GParamSpec*, gpointer d){}), data);
+                     
+                     AdwDialog* dlg = adw_alert_dialog_new("BIOS Locked", "Your BIOS rejected the manual fan control request.");
+                     adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dlg), "ok", "OK");
+                     GtkWidget* root = GTK_WIDGET(gtk_widget_get_root(GTK_WIDGET(row)));
+                     adw_dialog_present(dlg, root);
+                 }
+            }), speed_row);
+
+            g_signal_connect(speed_scale, "value-changed", G_CALLBACK(+[](GtkRange* range, gpointer) {
+                 int val = (int)gtk_range_get_value(range);
+                 AsusFanControl::set_fan_speed(val);
+            }), NULL);
+
+            adw_preferences_group_add(ADW_PREFERENCES_GROUP(manual_group), manual_row);
+            adw_preferences_group_add(ADW_PREFERENCES_GROUP(manual_group), speed_row);
+        }
 
         std::string cpu_name = "CPU • " + AsusCore::get_cpu_name();
         std::string gpu_name = "GPU • " + AsusCore::get_gpu_name();
@@ -76,8 +128,11 @@ public:
 
         GtkWidget* gpu_row = adw_action_row_new();
         adw_preferences_row_set_title(ADW_PREFERENCES_ROW(gpu_row), gpu_name.c_str());
-        if (gpu_name == "GPU • dGPU Unavailable") {
-             adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "Not detected");
+        
+        bool dgpu_available = true;
+        if (gpu_name.find("dGPU Unavailable") != std::string::npos) {
+             dgpu_available = false;
+             adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "Not detected (Eco Mode?)");
              gtk_widget_set_sensitive(gpu_row, FALSE);
         } else {
              adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "0 RPM");
@@ -93,6 +148,11 @@ public:
         GtkWidget* gpu_stress_btn = gtk_button_new_with_label("Stress GPU");
         gtk_widget_add_css_class(cpu_stress_btn, "destructive-action");
         gtk_widget_add_css_class(gpu_stress_btn, "destructive-action");
+        
+        if (!dgpu_available) {
+            gtk_widget_set_sensitive(gpu_stress_btn, FALSE);
+            gtk_widget_set_tooltip_text(gpu_stress_btn, "dGPU is unavailable.");
+        }
 
         struct StressData { GtkWidget* c_btn; GtkWidget* g_btn; GtkWidget* page; };
         StressData* sdata = new StressData{cpu_stress_btn, gpu_stress_btn, page};
@@ -157,17 +217,73 @@ public:
         if (AsusGpu::is_dynamic_boost_supported()) {
              GtkWidget* boost_row = adw_switch_row_new();
              adw_preferences_row_set_title(ADW_PREFERENCES_ROW(boost_row), "Dynamic Boost");
-             adw_action_row_set_subtitle(ADW_ACTION_ROW(boost_row), "Shifts 15W power from CPU to GPU (nvidia-powerd).");
              
-             adw_switch_row_set_active(ADW_SWITCH_ROW(boost_row), AsusGpu::get_dynamic_boost());
-             
-             g_signal_connect(boost_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
-                  bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
-                  if (!AsusGpu::set_dynamic_boost(active)) {
-                  }
-             }), NULL);
+             if (dgpu_available) {
+                 adw_action_row_set_subtitle(ADW_ACTION_ROW(boost_row), "Shifts 15W-25W power from CPU to GPU (nvidia-powerd).");
+                 adw_switch_row_set_active(ADW_SWITCH_ROW(boost_row), AsusGpu::get_dynamic_boost());
+                 
+                 g_signal_connect(boost_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                      bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
+                      if (!AsusGpu::set_dynamic_boost(active)) {
+                      }
+                 }), NULL);
+             } else {
+                 adw_action_row_set_subtitle(ADW_ACTION_ROW(boost_row), "Unavailable (dGPU is off).");
+                 gtk_widget_set_sensitive(boost_row, FALSE);
+             }
              
              adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), boost_row);
+        }
+
+        // GPU Mux Switch
+        if (AsusMux::is_supported()) {
+             GtkWidget* mux_row = adw_combo_row_new();
+             adw_preferences_row_set_title(ADW_PREFERENCES_ROW(mux_row), "GPU Mode");
+             adw_action_row_set_subtitle(ADW_ACTION_ROW(mux_row), "Requires reboot to apply.");
+             
+             const char* modes[] = {"Standard (Hybrid)", "Eco (Integrated)", "Ultimate (Nvidia)", NULL};
+             GtkStringList* list = gtk_string_list_new(modes);
+             adw_combo_row_set_model(ADW_COMBO_ROW(mux_row), G_LIST_MODEL(list));
+             
+             AsusMux::Mode current = AsusMux::get_mode();
+             int idx = 0;
+             if (current == AsusMux::Mode::Integrated) idx = 1;
+             if (current == AsusMux::Mode::Nvidia) idx = 2;
+             
+             adw_combo_row_set_selected(ADW_COMBO_ROW(mux_row), idx);
+             
+             auto gpu_cb = +[](GObject* row, GParamSpec*, gpointer) {
+                  int idx = adw_combo_row_get_selected(ADW_COMBO_ROW(row));
+                  AsusMux::Mode m = AsusMux::Mode::Hybrid;
+                  if (idx == 1) m = AsusMux::Mode::Integrated;
+                  if (idx == 2) m = AsusMux::Mode::Nvidia;
+                  
+                  auto handle = AsusNotification::show_loading(GTK_WIDGET(row), "Switching GPU Mode...\n(May ask for password)");
+                  
+                  struct AsyncData { AsusNotification::LoadingHandle* h; AsusMux::Mode m; };
+                  AsyncData* ad = new AsyncData{handle, m};
+                  
+                  g_timeout_add(100, +[](gpointer ptr) -> gboolean {
+                      AsyncData* ad = (AsyncData*)ptr;
+                      
+                      bool success = AsusMux::set_mode(ad->m);
+                      
+                      ad->h->close();
+                      
+                      if (success) {
+                          AsusNotification::show_toast("GPU Mode Set. Please Reboot.");
+                      } else {
+                          AsusNotification::show_toast("Failed to set GPU Mode.");
+                      }
+                      
+                      delete ad;
+                      return G_SOURCE_REMOVE;
+                  }, ad);
+             };
+             
+             g_signal_connect(mux_row, "notify::selected", G_CALLBACK(gpu_cb), NULL);
+             
+             adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), mux_row);
         }
         // screen
         if (AsusBrightness::is_supported()) {
@@ -244,6 +360,9 @@ public:
             }
             adw_action_row_set_subtitle(ADW_ACTION_ROW(d->cpu), cpu_sub.c_str());
 
+            if (m.gpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.gpu_rpm, m.gpu_temp);
+            else snprintf(buf, sizeof(buf), "%d RPM", m.gpu_rpm);
+            
             if (m.gpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.gpu_rpm, m.gpu_temp);
             else snprintf(buf, sizeof(buf), "%d RPM", m.gpu_rpm);
             
@@ -376,23 +495,41 @@ public:
             };
             CallbackData* data = new CallbackData{mode, status_row};
 
-            g_signal_connect_data(btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer user_data) {
+            auto cb = +[](GtkButton* btn, gpointer user_data) {
                 CallbackData* d = static_cast<CallbackData*>(user_data);
                 
-                std::cout << "[AsusPlugin] Requesting mode switch to: " << (int)d->mode << std::endl;
+                auto handle = AsusNotification::show_loading(GTK_WIDGET(btn), "Switching Mode...");
                 
-                if (AsusModes::set_mode(d->mode)) {
-                    std::cout << "[AsusPlugin] Mode applied successfully." << std::endl;
-                     switch (d->mode) {
-                        case AsusMode::Silent:   adw_action_row_set_subtitle(ADW_ACTION_ROW(d->row), "Silent"); break;
-                        case AsusMode::Balanced: adw_action_row_set_subtitle(ADW_ACTION_ROW(d->row), "Balanced"); break;
-                        case AsusMode::Turbo:    adw_action_row_set_subtitle(ADW_ACTION_ROW(d->row), "Turbo"); break;
-                        default: break;
+                struct AsyncData { AsusNotification::LoadingHandle* h; CallbackData* d; };
+                AsyncData* ad = new AsyncData{handle, d};
+                
+                g_timeout_add(100, +[](gpointer ptr) -> gboolean {
+                    AsyncData* ad = (AsyncData*)ptr;
+                    
+                    std::cout << "[AsusPlugin] Requesting mode switch..." << std::endl;
+                    bool success = AsusModes::set_mode(ad->d->mode);
+                    
+                    ad->h->close();
+                    
+                    if (success) {
+                        std::cout << "[AsusPlugin] Mode applied." << std::endl;
+                        AsusNotification::show_toast("Performance Mode Applied");
+                         switch (ad->d->mode) {
+                            case AsusMode::Silent:   adw_action_row_set_subtitle(ADW_ACTION_ROW(ad->d->row), "Silent"); break;
+                            case AsusMode::Balanced: adw_action_row_set_subtitle(ADW_ACTION_ROW(ad->d->row), "Balanced"); break;
+                            case AsusMode::Turbo:    adw_action_row_set_subtitle(ADW_ACTION_ROW(ad->d->row), "Turbo"); break;
+                            default: break;
+                        }
+                    } else {
+                        std::cerr << "[AsusPlugin] Failed." << std::endl;
+                        AsusNotification::show_toast("Failed to set mode");
                     }
-                } else {
-                    std::cerr << "[AsusPlugin] Failed to set mode (Check permissions/Polkit)" << std::endl;
-                }
-            }), data, [](gpointer data, GClosure*) { delete static_cast<CallbackData*>(data); }, (GConnectFlags)0);
+                    delete ad;
+                    return G_SOURCE_REMOVE;
+                }, ad);
+            };
+
+            g_signal_connect_data(btn, "clicked", (GCallback)cb, data, [](gpointer data, GClosure*) { delete static_cast<CallbackData*>(data); }, (GConnectFlags)0);
             
             return btn;
         };

@@ -1,5 +1,11 @@
 #include <adwaita.h>
 #include "ui/window.h"
+#include <unistd.h>
+#include <sys/types.h>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <filesystem>
 
 static void activate(GtkApplication* app, [[maybe_unused]] gpointer user_data) {
     KdMainWindow* window = kd_main_window_new(app);
