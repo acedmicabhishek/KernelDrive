@@ -67,7 +67,6 @@ public:
         GtkWidget* adv_switch = gtk_switch_new();
         gtk_widget_set_valign(adv_switch, GTK_ALIGN_CENTER);
         adw_action_row_add_suffix(ADW_ACTION_ROW(adv_row), adv_switch);
-        adw_action_row_add_suffix(ADW_ACTION_ROW(adv_row), adv_switch);
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), adv_row);
 
         // Manual Fan Control
@@ -98,9 +97,9 @@ public:
                  if (AsusFanControl::set_manual_mode(active)) {
                      gtk_widget_set_visible(s_row, active);
                  } else {
-                     g_signal_handlers_block_by_func(row, (gpointer)G_CALLBACK(+[](GObject* r, GParamSpec*, gpointer d){}), data);
+                     g_signal_handlers_block_by_func(row, (gpointer)G_CALLBACK(+[](GObject*, GParamSpec*, gpointer){}), data);
                      adw_switch_row_set_active(ADW_SWITCH_ROW(row), !active);
-                     g_signal_handlers_unblock_by_func(row, (gpointer)G_CALLBACK(+[](GObject* r, GParamSpec*, gpointer d){}), data);
+                     g_signal_handlers_unblock_by_func(row, (gpointer)G_CALLBACK(+[](GObject*, GParamSpec*, gpointer){}), data);
                      
                      AdwDialog* dlg = adw_alert_dialog_new("BIOS Locked", "Your BIOS rejected the manual fan control request.");
                      adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dlg), "ok", "OK");
@@ -534,9 +533,9 @@ public:
             return btn;
         };
 
-        gtk_box_append(GTK_BOX(box), create_mode_btn("Silent", "weather-clear-night-symbolic", AsusMode::Silent, "silent-mode"));
-        gtk_box_append(GTK_BOX(box), create_mode_btn("Balanced", "weather-clear-symbolic", AsusMode::Balanced, "balanced-mode"));
-        gtk_box_append(GTK_BOX(box), create_mode_btn("Turbo", "weather-storm-symbolic", AsusMode::Turbo, "turbo-mode"));
+        gtk_box_append(GTK_BOX(box), create_mode_btn("Silent", "emblem-system-symbolic", AsusMode::Silent, "silent-mode"));
+        gtk_box_append(GTK_BOX(box), create_mode_btn("Balanced", "emblem-system-symbolic", AsusMode::Balanced, "balanced-mode"));
+        gtk_box_append(GTK_BOX(box), create_mode_btn("Turbo", "emblem-system-symbolic", AsusMode::Turbo, "turbo-mode"));
 
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), box);
         return page;

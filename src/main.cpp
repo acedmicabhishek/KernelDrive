@@ -8,6 +8,9 @@
 #include <filesystem>
 
 static void activate(GtkApplication* app, [[maybe_unused]] gpointer user_data) {
+    AdwStyleManager* mgr = adw_style_manager_get_default();
+    adw_style_manager_set_color_scheme(mgr, ADW_COLOR_SCHEME_PREFER_DARK);
+
     KdMainWindow* window = kd_main_window_new(app);
     gtk_window_present(GTK_WINDOW(window));
 }
