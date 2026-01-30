@@ -7,6 +7,7 @@ namespace AsusMonitor {
     struct CpuMetrics {
         int freq_mhz;
         int ram_mt_s;
+        int power_w;
     };
 
     struct GpuMetrics {
@@ -14,6 +15,8 @@ namespace AsusMonitor {
         int memory_clock_mhz; 
         int vram_used_mb;
         int vram_total_mb;
+        int power_w;
+        int power_limit_w;
     };
 
     void init();

@@ -7,6 +7,10 @@
 #include "backend/display.h"
 #include "backend/stress.h"
 #include "backend/monitor.h"
+#include "backend/brightness.h"
+#include "backend/keyboard.h"
+#include "backend/visuals.h"
+#include "backend/gpu.h"
 #include <gtk/gtk.h>
 #include <adwaita.h>
 #include <iostream>
@@ -27,6 +31,9 @@ public:
 
     GtkWidget* create_config_widget() override {
         AsusMonitor::init();
+        AsusBrightness::init();
+        AsusKeyboard::init();
+        
         GtkWidget* page = adw_preferences_page_new();
         GtkWidget* group = adw_preferences_group_new();
         adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(group), "Performance Modes");
@@ -91,11 +98,10 @@ public:
         StressData* sdata = new StressData{cpu_stress_btn, gpu_stress_btn, page};
 
         auto show_install_error = [](GtkWidget* parent, const char* app) {
-             GtkWidget* dlg = adw_message_dialog_new(GTK_WINDOW(gtk_widget_get_root(parent)), "Missing Component", NULL);
              std::string msg = std::string("Please install '") + app + "' to use this feature.";
-             adw_message_dialog_set_body(ADW_MESSAGE_DIALOG(dlg), msg.c_str());
-             adw_message_dialog_add_response(ADW_MESSAGE_DIALOG(dlg), "ok", "OK");
-             gtk_window_present(GTK_WINDOW(dlg));
+             AdwDialog* dlg = adw_alert_dialog_new("Missing Component", msg.c_str());
+             adw_alert_dialog_add_response(ADW_ALERT_DIALOG(dlg), "ok", "OK");
+             adw_dialog_present(dlg, parent);
         };
         struct CallbackCtx { StressData* s; decltype(show_install_error) err_fn; };
         CallbackCtx* ctx = new CallbackCtx{sdata, show_install_error};
@@ -147,13 +153,81 @@ public:
         
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), stress_box);
 
+        // Dynamic Boost (nvidia-powerd)
+        if (AsusGpu::is_dynamic_boost_supported()) {
+             GtkWidget* boost_row = adw_switch_row_new();
+             adw_preferences_row_set_title(ADW_PREFERENCES_ROW(boost_row), "Dynamic Boost");
+             adw_action_row_set_subtitle(ADW_ACTION_ROW(boost_row), "Shifts 15W power from CPU to GPU (nvidia-powerd).");
+             
+             adw_switch_row_set_active(ADW_SWITCH_ROW(boost_row), AsusGpu::get_dynamic_boost());
+             
+             g_signal_connect(boost_row, "notify::active", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                  bool active = adw_switch_row_get_active(ADW_SWITCH_ROW(row));
+                  if (!AsusGpu::set_dynamic_boost(active)) {
+                  }
+             }), NULL);
+             
+             adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), boost_row);
+        }
+        // screen
+        if (AsusBrightness::is_supported()) {
+            GtkWidget* screen_group = adw_preferences_group_new();
+            adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(screen_group), "Screen");
+            adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(screen_group));
+            
+            GtkWidget* bright_row = adw_action_row_new();
+            adw_preferences_row_set_title(ADW_PREFERENCES_ROW(bright_row), "Brightness");
+            
+            GtkWidget* bright_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 100, 1);
+            gtk_widget_set_hexpand(bright_scale, TRUE);
+            gtk_range_set_value(GTK_RANGE(bright_scale), AsusBrightness::get_brightness());
+            
+            g_signal_connect(bright_scale, "value-changed", G_CALLBACK(+[](GtkRange* range, gpointer data) {
+                 (void)data;
+                 int val = (int)gtk_range_get_value(range);
+                 AsusBrightness::set_brightness(val);
+            }), NULL);
+            
+            adw_action_row_add_suffix(ADW_ACTION_ROW(bright_row), bright_scale);
+            adw_preferences_group_add(ADW_PREFERENCES_GROUP(screen_group), bright_row);
+        }
+
+        // Keyboard
+        if (AsusKeyboard::is_supported()) {
+            GtkWidget* kbd_group = adw_preferences_group_new();
+            adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(kbd_group), "Keyboard");
+            adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(kbd_group));
+
+            // Backlight
+            GtkWidget* bl_row = adw_action_row_new();
+            adw_preferences_row_set_title(ADW_PREFERENCES_ROW(bl_row), "Backlight");
+            
+            // 0, 1, 2, 3
+            GtkWidget* bl_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, AsusKeyboard::get_max_brightness(), 1);
+            gtk_widget_set_hexpand(bl_scale, TRUE);
+            gtk_scale_set_draw_value(GTK_SCALE(bl_scale), FALSE);
+            gtk_scale_add_mark(GTK_SCALE(bl_scale), 0, GTK_POS_BOTTOM, "Off");
+            gtk_scale_add_mark(GTK_SCALE(bl_scale), AsusKeyboard::get_max_brightness(), GTK_POS_BOTTOM, "Max");
+            
+            gtk_range_set_value(GTK_RANGE(bl_scale), AsusKeyboard::get_brightness());
+
+            g_signal_connect(bl_scale, "value-changed", G_CALLBACK(+[](GtkRange* range, gpointer data) {
+                 (void)data;
+                 int val = (int)gtk_range_get_value(range);
+                 AsusKeyboard::set_brightness(val);
+            }), NULL);
+
+            adw_action_row_add_suffix(ADW_ACTION_ROW(bl_row), bl_scale);
+            adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), bl_row);
+      }
+
         struct FanData { GtkWidget* cpu; GtkWidget* gpu; GtkWidget* adv; };
         FanData* fdata = new FanData{cpu_row, gpu_row, adv_switch};
 
-        g_timeout_add(2000, +[](gpointer user_data) -> gboolean {
+        guint timeout_id = g_timeout_add(2000, +[](gpointer user_data) -> gboolean {
             FanData* d = static_cast<FanData*>(user_data);
-            if (!GTK_IS_WIDGET(d->cpu)) return G_SOURCE_REMOVE;
-
+            if (!GTK_IS_WIDGET(d->cpu)) return G_SOURCE_CONTINUE;
+            
             AsusCore::FanMetrics m = AsusCore::get_metrics();
             
             char buf[64];
@@ -166,6 +240,7 @@ public:
                 auto cm = AsusMonitor::get_cpu_metrics();
                 if (cm.freq_mhz > 0) cpu_sub += "  •  " + AsusMonitor::format_freq(cm.freq_mhz);
                 if (cm.ram_mt_s > 0) cpu_sub += "  •  " + AsusMonitor::format_speed(cm.ram_mt_s);
+                if (cm.power_w > 0) cpu_sub += "  •  " + std::to_string(cm.power_w) + " W";
             }
             adw_action_row_set_subtitle(ADW_ACTION_ROW(d->cpu), cpu_sub.c_str());
 
@@ -177,11 +252,21 @@ public:
                  auto gm = AsusMonitor::get_gpu_metrics();
                  if (gm.core_clock_mhz > 0) gpu_sub += "  •  " + std::to_string(gm.core_clock_mhz) + " MHz";
                  if (gm.vram_used_mb > 0) gpu_sub += "  •  " + std::to_string(gm.vram_used_mb) + " MB";
+                 if (gm.power_w > 0 || gm.power_limit_w > 0) gpu_sub += "  •  " + std::to_string(gm.power_w) + "W / " + std::to_string(gm.power_limit_w) + "W";
             }
             adw_action_row_set_subtitle(ADW_ACTION_ROW(d->gpu), gpu_sub.c_str());
 
             return G_SOURCE_CONTINUE;
         }, fdata);
+
+        g_signal_connect(page, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer data) {
+            guint id = GPOINTER_TO_UINT(data);
+            g_source_remove(id);
+        }), GUINT_TO_POINTER(timeout_id));
+
+        g_object_set_data_full(G_OBJECT(page), "fan-data", fdata, +[](gpointer data) {
+             delete static_cast<FanData*>(data);
+        });
 
 
         

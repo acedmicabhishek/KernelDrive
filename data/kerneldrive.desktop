@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=KernelDrive
+Comment=Modular System Control for Linux
+Exec=kerneldrive
+Icon=utilities-system-monitor
+Terminal=false
+Type=Application
+Categories=System;Settings;
+Keywords=Asus;Control;Fan;Power;

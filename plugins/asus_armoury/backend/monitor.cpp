@@ -6,10 +6,13 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <chrono>
 
 namespace AsusMonitor {
 
     static int cached_ram_speed = 0;
+    static long long last_energy_uj = 0;
+    static std::chrono::steady_clock::time_point last_energy_time;
 
     struct PcloseDeleter {
         void operator()(FILE* f) const { if (f) pclose(f); }
@@ -50,7 +53,7 @@ namespace AsusMonitor {
     }
 
     CpuMetrics get_cpu_metrics() {
-        CpuMetrics m = {0, cached_ram_speed};
+        CpuMetrics m = {0, cached_ram_speed, 0};
         
         std::ifstream f("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
         if (f.is_open()) {
@@ -59,32 +62,66 @@ namespace AsusMonitor {
             m.freq_mhz = khz / 1000;
         }
 
+        std::ifstream f_energy("/sys/class/powercap/intel-rapl:0/energy_uj");
+        if (f_energy.is_open()) {
+            long long uj = 0;
+            f_energy >> uj;
+            
+            auto now = std::chrono::steady_clock::now();
+            if (last_energy_uj > 0) {
+                 auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_energy_time).count();
+                 if (duration_ms > 0) {
+                     long long delta_uj = uj - last_energy_uj;
+                     if (delta_uj < 0) delta_uj += 262143328850LL;
+
+                     if (delta_uj > 0) {
+                        m.power_w = (int)((delta_uj / 1000) / duration_ms);
+                     }
+                 }
+            }
+            last_energy_uj = uj;
+            last_energy_time = now;
+        }
+
         return m;
     }
 
     GpuMetrics get_gpu_metrics() {
-        GpuMetrics m = {0, 0, 0, 0};
+        GpuMetrics m = {0, 0, 0, 0, 0, 0};
 
-        std::string out = run_cmd("nvidia-smi --query-gpu=clocks.gr,clocks.mem,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null");
+        std::string out = run_cmd("nvidia-smi --query-gpu=clocks.gr,clocks.mem,memory.used,memory.total,power.draw,power.limit,enforced.power.limit --format=csv,noheader,nounits 2>/dev/null");
         
         if (!out.empty()) {
-            std::vector<int> values;
+            std::vector<std::string> parts;
             std::string current;
             for (char c : out) {
                 if (c == ',') {
-                    if (!current.empty()) values.push_back(std::stoi(current));
+                    parts.push_back(current);
                     current.clear();
-                } else if (isdigit(c)) {
+                } else if (c != ' ' && c != '\n' && c != '\r') {
                     current += c;
                 }
             }
-            if (!current.empty()) values.push_back(std::stoi(current));
+            parts.push_back(current);
 
-            if (values.size() >= 4) {
-                m.core_clock_mhz = values[0];
-                m.memory_clock_mhz = values[1];
-                m.vram_used_mb = values[2];
-                m.vram_total_mb = values[3];
+            if (parts.size() >= 7) {
+                try {
+                    m.core_clock_mhz = std::stoi(parts[0]);
+                    m.memory_clock_mhz = std::stoi(parts[1]);
+                    m.vram_used_mb = std::stoi(parts[2]);
+                    m.vram_total_mb = std::stoi(parts[3]);
+                    
+                    try { m.power_w = (int)std::stof(parts[4]); } catch(...) {}
+                    
+                    int p_limit = 0;
+                    try { p_limit = (int)std::stof(parts[5]); } catch(...) {}
+                    
+                    if (p_limit == 0) {
+                        try { p_limit = (int)std::stof(parts[6]); } catch(...) {}
+                    }
+                    m.power_limit_w = p_limit;
+                    
+                } catch(...) {}
             }
         }
 

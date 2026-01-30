@@ -1,4 +1,4 @@
-project('KernelDrive', 'cpp',
+project('KernelDrive', ['cpp', 'c'],
   version: '0.1.0',
   default_options: [
     'warning_level=3',
@@ -17,6 +17,7 @@ sources = files(
   'src/ui/pages/power_page.cpp',
   'src/ui/pages/input_page.cpp',
   'src/ui/pages/display_page.cpp',
+  'src/ui/pages/store_page.cpp',
   'src/core/sysfs_writer.cpp',
   'src/core/plugin_manager.cpp',
 )
@@ -47,7 +48,11 @@ shared_module('asus_armoury',
     'plugins/asus_armoury/backend/battery.cpp',
     'plugins/asus_armoury/backend/display.cpp',
     'plugins/asus_armoury/backend/stress.cpp',
-    'plugins/asus_armoury/backend/monitor.cpp'
+    'plugins/asus_armoury/backend/monitor.cpp',
+    'plugins/asus_armoury/backend/brightness.cpp',
+    'plugins/asus_armoury/backend/keyboard.cpp',
+    'plugins/asus_armoury/backend/gpu.cpp',
+    'plugins/asus_armoury/backend/visuals.cpp'
   ],
   dependencies: [gtk_dep, libadwaita_dep],
   install: true,
@@ -62,4 +67,7 @@ shared_module('logitech_ghub',
   dependencies: [gtk_dep, libadwaita_dep],
   install: true,
   install_dir: get_option('libdir') / 'kerneldrive/plugins'
+)
+install_data('data/kerneldrive.desktop',
+  install_dir: get_option('datadir') / 'applications'
 )
