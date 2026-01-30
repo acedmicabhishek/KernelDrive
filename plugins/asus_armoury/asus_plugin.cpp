@@ -1,10 +1,12 @@
 #include "../../src/core/plugin_interface.h"
 #include "backend/modes.h"
-#include "backend/fans.h"
+#include "backend/core.h"
 #include "backend/battery.h"
 #include "backend/battery.h"
 #include "backend/display.h"
+#include "backend/display.h"
 #include "backend/stress.h"
+#include "backend/monitor.h"
 #include <gtk/gtk.h>
 #include <adwaita.h>
 #include <iostream>
@@ -20,10 +22,11 @@ public:
     }
 
     bool init() override {
-        return AsusModes::is_supported() || AsusFans::is_supported() || AsusBattery::is_supported();
+        return AsusModes::is_supported() || AsusCore::is_supported() || AsusBattery::is_supported();
     }
 
     GtkWidget* create_config_widget() override {
+        AsusMonitor::init();
         GtkWidget* page = adw_preferences_page_new();
         GtkWidget* group = adw_preferences_group_new();
         adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(group), "Performance Modes");
@@ -45,10 +48,19 @@ public:
 
         GtkWidget* fan_group = adw_preferences_group_new();
         adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(fan_group), "Core");
+        adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(fan_group), "Core");
         adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(fan_group));
 
-        std::string cpu_name = "CPU • " + AsusFans::get_cpu_name();
-        std::string gpu_name = "GPU • " + AsusFans::get_gpu_name();
+        // Advanced Toggle
+        GtkWidget* adv_row = adw_action_row_new();
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(adv_row), "Advanced Stats");
+        GtkWidget* adv_switch = gtk_switch_new();
+        gtk_widget_set_valign(adv_switch, GTK_ALIGN_CENTER);
+        adw_action_row_add_suffix(ADW_ACTION_ROW(adv_row), adv_switch);
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), adv_row);
+
+        std::string cpu_name = "CPU • " + AsusCore::get_cpu_name();
+        std::string gpu_name = "GPU • " + AsusCore::get_gpu_name();
 
         GtkWidget* cpu_row = adw_action_row_new();
         adw_preferences_row_set_title(ADW_PREFERENCES_ROW(cpu_row), cpu_name.c_str());
@@ -135,24 +147,38 @@ public:
         
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), stress_box);
 
-        struct FanData { GtkWidget* cpu; GtkWidget* gpu; };
-        FanData* fdata = new FanData{cpu_row, gpu_row};
+        struct FanData { GtkWidget* cpu; GtkWidget* gpu; GtkWidget* adv; };
+        FanData* fdata = new FanData{cpu_row, gpu_row, adv_switch};
 
         g_timeout_add(2000, +[](gpointer user_data) -> gboolean {
             FanData* d = static_cast<FanData*>(user_data);
             if (!GTK_IS_WIDGET(d->cpu)) return G_SOURCE_REMOVE;
 
-            AsusFans::FanMetrics m = AsusFans::get_metrics();
+            AsusCore::FanMetrics m = AsusCore::get_metrics();
             
             char buf[64];
             
             if (m.cpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.cpu_rpm, m.cpu_temp);
             else snprintf(buf, sizeof(buf), "%d RPM", m.cpu_rpm);
-            adw_action_row_set_subtitle(ADW_ACTION_ROW(d->cpu), buf);
+            
+            std::string cpu_sub = buf;
+            if (gtk_switch_get_active(GTK_SWITCH(d->adv))) {
+                auto cm = AsusMonitor::get_cpu_metrics();
+                if (cm.freq_mhz > 0) cpu_sub += "  •  " + AsusMonitor::format_freq(cm.freq_mhz);
+                if (cm.ram_mt_s > 0) cpu_sub += "  •  " + AsusMonitor::format_speed(cm.ram_mt_s);
+            }
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(d->cpu), cpu_sub.c_str());
 
             if (m.gpu_temp > 0) snprintf(buf, sizeof(buf), "%d RPM  •  %d°C", m.gpu_rpm, m.gpu_temp);
             else snprintf(buf, sizeof(buf), "%d RPM", m.gpu_rpm);
-            adw_action_row_set_subtitle(ADW_ACTION_ROW(d->gpu), buf);
+            
+            std::string gpu_sub = buf;
+            if (gtk_switch_get_active(GTK_SWITCH(d->adv))) {
+                 auto gm = AsusMonitor::get_gpu_metrics();
+                 if (gm.core_clock_mhz > 0) gpu_sub += "  •  " + std::to_string(gm.core_clock_mhz) + " MHz";
+                 if (gm.vram_used_mb > 0) gpu_sub += "  •  " + std::to_string(gm.vram_used_mb) + " MB";
+            }
+            adw_action_row_set_subtitle(ADW_ACTION_ROW(d->gpu), gpu_sub.c_str());
 
             return G_SOURCE_CONTINUE;
         }, fdata);

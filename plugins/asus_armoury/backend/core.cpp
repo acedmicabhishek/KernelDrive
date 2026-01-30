@@ -1,4 +1,4 @@
-#include "fans.h"
+#include "core.h"
 #include "../../../src/core/sysfs_writer.h"
 #include <filesystem>
 #include <fstream>
@@ -7,7 +7,7 @@
 #include <iostream>
 #include <map>
 
-namespace AsusFans {
+namespace AsusCore {
     namespace fs = std::filesystem;
 
     struct SensorPaths {
@@ -66,7 +66,7 @@ namespace AsusFans {
 
         g_sensors.valid = true;
         
-        std::cout << "[AsusFans] Scanned Sensors:" << std::endl;
+        std::cout << "[AsusCore] Scanned Sensors:" << std::endl;
         std::cout << "  CPU Fan: " << g_sensors.cpu_fan << std::endl;
         std::cout << "  GPU Fan: " << g_sensors.gpu_fan << std::endl;
         std::cout << "  CPU Temp: " << g_sensors.cpu_temp << std::endl;
@@ -116,7 +116,10 @@ namespace AsusFans {
         
         std::array<char, 256> buffer;
         std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("lspci | grep -E \"VGA|3D\"", "r"), pclose);
+        struct PcloseDeleter {
+            void operator()(FILE* f) const { if (f) pclose(f); }
+        };
+        std::unique_ptr<FILE, PcloseDeleter> pipe(popen("lspci | grep -E \"VGA|3D\"", "r"));
         if (!pipe) return "GPU Unknown";
         
         std::string nvidia_card;

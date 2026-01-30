@@ -2,7 +2,7 @@
 #include <utility>
 #include <string>
 
-namespace AsusFans {
+namespace AsusCore {
     struct FanMetrics {
         int cpu_rpm;
         int gpu_rpm;
