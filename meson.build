@@ -73,7 +73,8 @@ shared_module('logitech_ghub',
   [
     'plugins/logitech_ghub/logitech_plugin.cpp',
     'plugins/logitech_ghub/backend/logitech_peripherals.cpp',
-    'plugins/logitech_ghub/backend/hidpp_driver.cpp'
+    'plugins/logitech_ghub/backend/hidpp_driver.cpp',
+    'plugins/logitech_ghub/backend/hidpp20_device.cpp'
   ],
   dependencies: [gtk_dep, libadwaita_dep, hidapi_dep],
   install: true,

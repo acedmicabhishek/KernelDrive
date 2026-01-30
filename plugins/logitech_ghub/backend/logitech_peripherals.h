@@ -17,4 +17,5 @@ namespace Logitech {
 
     std::vector<Device> get_devices();
     bool set_dpi(const std::string& path, int dpi);
+    bool set_polling_rate(const std::string& path, int rate_ms);
 }

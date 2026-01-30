@@ -36,7 +36,7 @@ public:
         GtkWidget* device_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
         gtk_box_append(GTK_BOX(box), device_list);
 
-        g_signal_connect(scan_btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer data) {
+        g_signal_connect(scan_btn, "clicked", (GCallback)(+[](GtkButton*, gpointer data) {
             GtkWidget* list = GTK_WIDGET(data);
 
             GtkWidget* child = gtk_widget_get_first_child(list);
@@ -72,7 +72,7 @@ public:
                 CbData* cbd = new CbData{dev.path};
                 g_object_set_data_full(G_OBJECT(spin), "cbd", cbd, [](gpointer d) { delete (CbData*)d; });
 
-                g_signal_connect(spin, "value-changed", G_CALLBACK(+[](GtkSpinButton* btn, gpointer) {
+                g_signal_connect(spin, "value-changed", (GCallback)(+[](GtkSpinButton* btn, gpointer) {
                     CbData* d = (CbData*)g_object_get_data(G_OBJECT(btn), "cbd");
                     int val = gtk_spin_button_get_value_as_int(btn);
                     Logitech::set_dpi(d->path, val);
@@ -80,6 +80,33 @@ public:
 
                 adw_action_row_add_suffix(ADW_ACTION_ROW(dpi_row), spin);
                 adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), dpi_row);
+
+                // Polling Rate
+                GtkWidget* rate_row = adw_combo_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(rate_row), "Polling Rate");
+                
+                const char* rates[] = {"1000 Hz", "500 Hz", "250 Hz", "125 Hz", nullptr};
+                GtkStringList* rate_list = gtk_string_list_new(rates);
+                adw_combo_row_set_model(ADW_COMBO_ROW(rate_row), G_LIST_MODEL(rate_list));
+                
+                adw_combo_row_set_selected(ADW_COMBO_ROW(rate_row), 0);
+
+                CbData* cbd_rate = new CbData{dev.path};
+                g_object_set_data_full(G_OBJECT(rate_row), "cbd", cbd_rate, [](gpointer d) { delete (CbData*)d; });
+
+                g_signal_connect(rate_row, "notify::selected", (GCallback)(+[](AdwComboRow* row, GParamSpec*, gpointer) {
+                    CbData* d = (CbData*)g_object_get_data(G_OBJECT(row), "cbd");
+                    guint selected = adw_combo_row_get_selected(row);
+                    
+                    int ms = 1;
+                    if (selected == 1) ms = 2;
+                    else if (selected == 2) ms = 4;
+                    else if (selected == 3) ms = 8;
+                    
+                    Logitech::set_polling_rate(d->path, ms);
+                }), nullptr);
+
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), rate_row);
                 
                 gtk_box_append(GTK_BOX(list), group);
             }
