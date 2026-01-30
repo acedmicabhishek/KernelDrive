@@ -87,6 +87,54 @@ namespace AsusFans {
 
     bool is_supported() {
         scan_sensors();
-        return !g_sensors.cpu_fan.empty();
+        return !g_sensors.cpu_fan.empty(); 
+    }
+
+    // Hardware Info
+    std::string get_cpu_name() {
+        std::ifstream f("/proc/cpuinfo");
+        std::string line;
+        while (std::getline(f, line)) {
+            if (line.find("model name") != std::string::npos) {
+                auto pos = line.find(":");
+                if (pos != std::string::npos) {
+                    std::string name = line.substr(pos + 1);
+                    size_t first = name.find_first_not_of(" \t");
+                    if (first != std::string::npos) name = name.substr(first);
+                    return name;
+                }
+            }
+        }
+        return "Unknown CPU";
+    }
+
+    std::string get_gpu_name() {
+        // Simple heuristic: 
+        // 1. Run lspci
+        // 2. Look for "NVIDIA" -> Return description
+        // 3. Else look for "Radeon" -> ?
+        
+        std::array<char, 256> buffer;
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("lspci | grep -E \"VGA|3D\"", "r"), pclose);
+        if (!pipe) return "GPU Unknown";
+        
+        std::string nvidia_card;
+        
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            std::string line = buffer.data();
+            if (line.find("NVIDIA") != std::string::npos) {
+ auto start = line.find("[");
+                auto end = line.find("]");
+                if (start != std::string::npos && end != std::string::npos) {
+                    nvidia_card = line.substr(start + 1, end - start - 1);
+                    break;
+                }
+            }
+        }
+        
+        if (!nvidia_card.empty()) return nvidia_card;
+
+        return "dGPU Unavailable";
     }
 }

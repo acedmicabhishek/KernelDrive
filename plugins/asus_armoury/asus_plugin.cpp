@@ -2,7 +2,9 @@
 #include "backend/modes.h"
 #include "backend/fans.h"
 #include "backend/battery.h"
+#include "backend/battery.h"
 #include "backend/display.h"
+#include "backend/stress.h"
 #include <gtk/gtk.h>
 #include <adwaita.h>
 #include <iostream>
@@ -42,18 +44,96 @@ public:
         };
 
         GtkWidget* fan_group = adw_preferences_group_new();
-        adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(fan_group), "Fan Speeds");
+        adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(fan_group), "Core");
         adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(fan_group));
 
+        std::string cpu_name = "CPU • " + AsusFans::get_cpu_name();
+        std::string gpu_name = "GPU • " + AsusFans::get_gpu_name();
+
         GtkWidget* cpu_row = adw_action_row_new();
-        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(cpu_row), "CPU Fan");
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(cpu_row), cpu_name.c_str());
         adw_action_row_set_subtitle(ADW_ACTION_ROW(cpu_row), "0 RPM");
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), cpu_row);
 
         GtkWidget* gpu_row = adw_action_row_new();
-        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(gpu_row), "GPU Fan");
-        adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "0 RPM");
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(gpu_row), gpu_name.c_str());
+        if (gpu_name == "GPU • dGPU Unavailable") {
+             adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "Not detected");
+             gtk_widget_set_sensitive(gpu_row, FALSE);
+        } else {
+             adw_action_row_set_subtitle(ADW_ACTION_ROW(gpu_row), "0 RPM");
+        }
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), gpu_row);
+
+        // Stress Test Buttons
+        GtkWidget* stress_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+        gtk_widget_set_halign(stress_box, GTK_ALIGN_CENTER);
+        gtk_widget_set_margin_top(stress_box, 10);
+        
+        GtkWidget* cpu_stress_btn = gtk_button_new_with_label("Stress CPU");
+        GtkWidget* gpu_stress_btn = gtk_button_new_with_label("Stress GPU");
+        gtk_widget_add_css_class(cpu_stress_btn, "destructive-action");
+        gtk_widget_add_css_class(gpu_stress_btn, "destructive-action");
+
+        struct StressData { GtkWidget* c_btn; GtkWidget* g_btn; GtkWidget* page; };
+        StressData* sdata = new StressData{cpu_stress_btn, gpu_stress_btn, page};
+
+        auto show_install_error = [](GtkWidget* parent, const char* app) {
+             GtkWidget* dlg = adw_message_dialog_new(GTK_WINDOW(gtk_widget_get_root(parent)), "Missing Component", NULL);
+             std::string msg = std::string("Please install '") + app + "' to use this feature.";
+             adw_message_dialog_set_body(ADW_MESSAGE_DIALOG(dlg), msg.c_str());
+             adw_message_dialog_add_response(ADW_MESSAGE_DIALOG(dlg), "ok", "OK");
+             gtk_window_present(GTK_WINDOW(dlg));
+        };
+        struct CallbackCtx { StressData* s; decltype(show_install_error) err_fn; };
+        CallbackCtx* ctx = new CallbackCtx{sdata, show_install_error};
+
+        g_signal_connect(cpu_stress_btn, "clicked", G_CALLBACK(+[](GtkButton* btn, gpointer user_data) {
+            CallbackCtx* c = (CallbackCtx*)user_data;
+            if (AsusStress::is_cpu_stress_running()) {
+                AsusStress::stop_cpu_stress();
+                gtk_button_set_label(btn, "Stress CPU");
+            } else {
+                if (AsusStress::has_cpu_burn()) {
+                   if (AsusStress::start_cpu_stress()) {
+                       gtk_button_set_label(btn, "Stop CPU");
+                   }
+                } else {
+                   c->err_fn(GTK_WIDGET(btn), "stress-ng");
+                }
+            }
+        }), ctx);
+
+        g_signal_connect(gpu_stress_btn, "clicked", G_CALLBACK(+[](GtkButton* btn, gpointer user_data) {
+            CallbackCtx* c = (CallbackCtx*)user_data;
+            if (AsusStress::is_gpu_stress_running()) {
+                AsusStress::stop_gpu_stress();
+                gtk_button_set_label(btn, "Stress GPU");
+            } else {
+                if (AsusStress::has_gpu_burn()) {
+                    if (AsusStress::start_gpu_stress()) {
+                        gtk_button_set_label(btn, "Stop GPU");
+                    }
+                } else {
+                   c->err_fn(GTK_WIDGET(btn), "gpu_burn");
+                }
+            }
+        }), ctx);
+
+        g_timeout_add(1000, +[](gpointer user_data) -> gboolean {
+            StressData* s = (StressData*)user_data;
+            if (!GTK_IS_WIDGET(s->c_btn)) return G_SOURCE_REMOVE; 
+
+            if (!AsusStress::is_cpu_stress_running()) gtk_button_set_label(GTK_BUTTON(s->c_btn), "Stress CPU");
+            if (!AsusStress::is_gpu_stress_running()) gtk_button_set_label(GTK_BUTTON(s->g_btn), "Stress GPU");
+            
+            return G_SOURCE_CONTINUE;
+        }, sdata);
+
+        gtk_box_append(GTK_BOX(stress_box), cpu_stress_btn);
+        gtk_box_append(GTK_BOX(stress_box), gpu_stress_btn);
+        
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(fan_group), stress_box);
 
         struct FanData { GtkWidget* cpu; GtkWidget* gpu; };
         FanData* fdata = new FanData{cpu_row, gpu_row};

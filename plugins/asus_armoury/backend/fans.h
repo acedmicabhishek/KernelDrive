@@ -1,5 +1,6 @@
 #pragma once
 #include <utility>
+#include <string>
 
 namespace AsusFans {
     struct FanMetrics {
@@ -10,6 +11,9 @@ namespace AsusFans {
     };
 
     FanMetrics get_metrics();
+    
+    std::string get_cpu_name();
+    std::string get_gpu_name();
 
     bool is_supported();
 }
