@@ -80,6 +80,9 @@ shared_module('logitech_ghub',
   install: true,
   install_dir: get_option('libdir') / 'kerneldrive/plugins'
 )
+
+subdir('plugins/ryzen_controller')
+
 install_data('data/kerneldrive.desktop',
   install_dir: get_option('datadir') / 'applications'
 )
