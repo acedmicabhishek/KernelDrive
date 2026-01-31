@@ -26,6 +26,7 @@ public:
     int get_polling_rate();
     bool set_dpi(int dpi);
     bool set_polling_rate(int ms);
+    bool set_led(int mode, int r, int g, int b, int period);
     
     std::string get_path() const { return m_path; }
     std::string get_name() const { return m_name; }

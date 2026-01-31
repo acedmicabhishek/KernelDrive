@@ -223,3 +223,82 @@ bool Hidpp20Device::set_polling_rate(int ms) {
     auto resp = m_driver.send_recv(cmd);
     return !resp.empty();
 }
+
+bool Hidpp20Device::set_led(int mode, int r, int g, int b, int period) {
+    if (mode == 0) {
+        mode = 1;
+        r = 0; g = 0; b = 0;
+    }
+
+    if (!is_connected()) {
+        std::cout << "[Hidpp20] Not connected, trying to connect..." << std::endl;
+        connect();
+    }
+    
+    uint8_t feat_idx = get_feature_index(HIDPP_PAGE_COLOR_LED_EFFECTS); // 0x8070
+    bool is_8071 = false;
+    
+    std::cout << "[Hidpp20] Checking RGB Features..." << std::endl;
+    if (feat_idx == 0) {
+        std::cout << "[Hidpp20] 0x8070 not found. Checking 0x8071..." << std::endl;
+        feat_idx = get_feature_index(HIDPP_PAGE_RGB_EFFECTS); // 0x8071
+        if (feat_idx != 0) is_8071 = true;
+    } else {
+        std::cout << "[Hidpp20] Found 0x8070 at index " << (int)feat_idx << std::endl;
+    }
+    
+    if (feat_idx == 0) {
+        std::cerr << "[Hidpp20] RGB Feature 0x8070/0x8071 not found on this device." << std::endl;
+        return false;
+    }
+    
+    std::vector<unsigned char> cmd(20, 0x00);
+    cmd[0] = 0x11;
+    cmd[1] = 0xFF;
+    cmd[2] = feat_idx;
+    
+    if (is_8071) {
+        // 0x8071 Protocol: Func 1 (0x10) = Set Effect
+        cmd[3] = 0x10; 
+        // 8071 usually: [Zone][Mode][R][G][B][PeriodH][PeriodL]
+        cmd[4] = 0x00;
+        cmd[5] = (uint8_t)mode;
+        cmd[6] = (uint8_t)r;
+        cmd[7] = (uint8_t)g;
+        cmd[8] = (uint8_t)b;
+        if (mode == 2 || mode == 3) {
+             cmd[9] = (period >> 8) & 0xFF;
+             cmd[10] = (period & 0xFF);
+        }
+    } else {
+        // 0x8070 Protocol: Func 3 (0x30) = Set Zone Effect
+        cmd[3] = CMD_COLOR_LED_EFFECTS_SET_ZONE_EFFECT; // 0x30
+        cmd[4] = 0x00;
+        cmd[5] = (uint8_t)mode;
+        cmd[6] = (uint8_t)r;
+        cmd[7] = (uint8_t)g;
+        cmd[8] = (uint8_t)b;
+        if (mode == 2 || mode == 3) {
+             cmd[9] = (period >> 8) & 0xFF;
+             cmd[10] = (period & 0xFF);
+        }
+    }
+    
+    std::cout << "[Hidpp20] Sending LED Command. Is 8071? " << is_8071 << ". Mode: " << mode << std::endl;
+    
+    int max_zone = is_8071 ? 1 : 0;
+    
+    bool overall_success = false;
+    for (int zone = 0; zone <= max_zone; zone++) {
+        cmd[4] = (uint8_t)zone;
+        auto resp = m_driver.send_recv(cmd);
+        if (!resp.empty()) {
+             std::cout << "[Hidpp20] Zone " << zone << " Success! Resp size: " << resp.size() << std::endl;
+             overall_success = true;
+        } else {
+             std::cout << "[Hidpp20] Zone " << zone << " Failed/NoResp." << std::endl;
+        }
+    }
+    
+    return overall_success;
+}

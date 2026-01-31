@@ -9,6 +9,7 @@
 #define HIDPP_PAGE_ADJUSTABLE_DPI           0x2201
 #define HIDPP_PAGE_ADJUSTABLE_REPORT_RATE   0x8060
 #define HIDPP_PAGE_COLOR_LED_EFFECTS        0x8070
+#define HIDPP_PAGE_RGB_EFFECTS              0x8071 // Newer/Alternative/Fukedinthehead
 #define HIDPP_PAGE_ONBOARD_PROFILES         0x8100
 
 #define CMD_ROOT_GET_FEATURE                0x00 // Func 0

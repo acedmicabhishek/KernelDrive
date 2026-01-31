@@ -68,4 +68,16 @@ namespace Logitech {
         if (!dev.connect()) return false;
         return dev.set_polling_rate(rate_ms);
     }
+
+    bool set_rgb(const std::string& path, int r, int g, int b) {
+        Hidpp20Device dev(path, "");
+        if (!dev.connect()) return false;
+        return dev.set_led(1, r, g, b, 0);
+    }
+
+    bool set_led(const std::string& path, int mode, int r, int g, int b, int period) {
+        Hidpp20Device dev(path, "");
+        if (!dev.connect()) return false;
+        return dev.set_led(mode, r, g, b, period);
+    }
 }

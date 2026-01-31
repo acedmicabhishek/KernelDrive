@@ -113,6 +113,85 @@ public:
 
                 adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), rate_row);
                 
+                // RGB Mode
+                GtkWidget* mode_row = adw_combo_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(mode_row), "Lighting Mode (Experimental)");
+                const char* modes[] = {"Off", "Static", "Breathing", "Cycle", nullptr};
+                // 0=Off, 1=Static, 2=Breathing, 3=Cycle : experimenetal , idk dude we might need to update this sector
+                adw_combo_row_set_model(ADW_COMBO_ROW(mode_row), G_LIST_MODEL(gtk_string_list_new(modes)));
+                adw_combo_row_set_selected(ADW_COMBO_ROW(mode_row), 1);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), mode_row);
+
+                GtkWidget* rgb_row = adw_action_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(rgb_row), "Color (Experimental)");
+                
+                GtkWidget* color_btn = gtk_color_dialog_button_new(gtk_color_dialog_new());
+                gtk_widget_set_valign(color_btn, GTK_ALIGN_CENTER);
+                GdkRGBA color = {0.0, 1.0, 1.0, 1.0};
+                gtk_color_dialog_button_set_rgba(GTK_COLOR_DIALOG_BUTTON(color_btn), &color);
+                adw_action_row_add_suffix(ADW_ACTION_ROW(rgb_row), color_btn);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), rgb_row);
+
+                GtkWidget* speed_row = adw_action_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(speed_row), "Cycle Speed (ms) (Experimental)");
+                GtkWidget* speed_spin = gtk_spin_button_new_with_range(100, 20000, 100);
+                gtk_spin_button_set_value(GTK_SPIN_BUTTON(speed_spin), 5000); // 5s default
+                gtk_widget_set_valign(speed_spin, GTK_ALIGN_CENTER);
+                adw_action_row_add_suffix(ADW_ACTION_ROW(speed_row), speed_spin);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), speed_row);
+
+                struct RGBCbData {
+                    std::string path;
+                    GtkWidget* mode_w;
+                    GtkWidget* color_w;
+                    GtkWidget* speed_w;
+                };
+                RGBCbData* rgb_data = new RGBCbData{dev.path, mode_row, color_btn, speed_spin};
+                auto get_rgb_and_update = [](RGBCbData* d) {
+                    int mode_idx = adw_combo_row_get_selected(ADW_COMBO_ROW(d->mode_w));
+                    const GdkRGBA* c = gtk_color_dialog_button_get_rgba(GTK_COLOR_DIALOG_BUTTON(d->color_w));
+                    int r = (int)(c->red * 255);
+                    int g = (int)(c->green * 255);
+                    int b = (int)(c->blue * 255);
+                    int period = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(d->speed_w));
+                    Logitech::set_led(d->path, mode_idx, r, g, b, period);
+                };
+
+                g_object_set_data_full(G_OBJECT(group), "rgb_data", rgb_data, [](gpointer d){ delete (RGBCbData*)d; });
+                
+                g_signal_connect(mode_row, "notify::selected", (GCallback)(+[](GtkWidget*, GParamSpec*, gpointer data) {
+                     RGBCbData* d = (RGBCbData*)data;
+                     int mode_idx = adw_combo_row_get_selected(ADW_COMBO_ROW(d->mode_w));
+                     const GdkRGBA* c = gtk_color_dialog_button_get_rgba(GTK_COLOR_DIALOG_BUTTON(d->color_w));
+                     int r = (int)(c->red * 255);
+                     int g = (int)(c->green * 255);
+                     int b = (int)(c->blue * 255);
+                     int period = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(d->speed_w));
+                     Logitech::set_led(d->path, mode_idx, r, g, b, period);
+                }), rgb_data);
+
+                g_signal_connect(color_btn, "notify::rgba", (GCallback)(+[](GtkWidget*, GParamSpec*, gpointer data) {
+                     RGBCbData* d = (RGBCbData*)data;
+                     int mode_idx = adw_combo_row_get_selected(ADW_COMBO_ROW(d->mode_w));
+                     const GdkRGBA* c = gtk_color_dialog_button_get_rgba(GTK_COLOR_DIALOG_BUTTON(d->color_w));
+                     int r = (int)(c->red * 255);
+                     int g = (int)(c->green * 255);
+                     int b = (int)(c->blue * 255);
+                     int period = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(d->speed_w));
+                     Logitech::set_led(d->path, mode_idx, r, g, b, period);
+                }), rgb_data);
+                
+                g_signal_connect(speed_spin, "value-changed", (GCallback)(+[](GtkWidget*, gpointer data) {
+                     RGBCbData* d = (RGBCbData*)data;
+                     int mode_idx = adw_combo_row_get_selected(ADW_COMBO_ROW(d->mode_w));
+                     const GdkRGBA* c = gtk_color_dialog_button_get_rgba(GTK_COLOR_DIALOG_BUTTON(d->color_w));
+                     int r = (int)(c->red * 255);
+                     int g = (int)(c->green * 255);
+                     int b = (int)(c->blue * 255);
+                     int period = (int)gtk_spin_button_get_value(GTK_SPIN_BUTTON(d->speed_w));
+                     Logitech::set_led(d->path, mode_idx, r, g, b, period);
+                }), rgb_data);
+                
                 gtk_box_append(GTK_BOX(list), group);
             }
         }), device_list);
