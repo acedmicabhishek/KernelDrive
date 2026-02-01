@@ -35,12 +35,7 @@ executable('kerneldrive',
 )
 
 # Plugins
-shared_module('system_info',
-  'plugins/system_info.cpp',
-  dependencies: [gtk_dep, libadwaita_dep],
-  install: true,
-  install_dir: get_option('libdir') / 'kerneldrive/plugins'
-)
+subdir('plugins/system_info')
 
 shared_module('asus_armoury',
   [
