@@ -3,6 +3,7 @@
 #include "pages/power_page.h"
 #include "pages/input_page.h"
 #include "pages/display_page.h"
+#include "pages/socials_page.h"
 #include "pages/store_page.h"
 #include <unistd.h>
 #include <iostream>
@@ -50,6 +51,8 @@ static void on_sidebar_row_activated(AdwActionRow* row, KdMainWindow* self) {
         content_widget = kd_display_page_new();
     } else if (g_strcmp0(page_id, "store") == 0) {
         content_widget = kd_store_page_new();
+    } else if (g_strcmp0(page_id, "socials") == 0) {
+        content_widget = SocialsPage::create();
     } else {
         content_widget = adw_status_page_new();
         adw_status_page_set_title(ADW_STATUS_PAGE(content_widget), title);
@@ -242,6 +245,28 @@ static void kd_main_window_init(KdMainWindow* self) {
          add_row(plugin->get_name().c_str(), "application-x-addon-symbolic", "plugin", plugin.get());
     }
 
+    // Footer
+    GtkWidget* footer_group = adw_preferences_group_new();
+    gtk_widget_set_margin_bottom(footer_group, 12);
+    gtk_widget_set_margin_start(footer_group, 12);
+    gtk_widget_set_margin_end(footer_group, 12);
+    gtk_box_append(GTK_BOX(sidebar_box), footer_group);
+
+    auto add_footer_row = [&](const char* title, const char* icon_name, const char* id) {
+        GtkWidget* row = adw_action_row_new();
+        adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
+        if (icon_name) {
+            GtkWidget* icon = gtk_image_new_from_icon_name(icon_name);
+            adw_action_row_add_prefix(ADW_ACTION_ROW(row), icon);
+        }
+        gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
+        g_object_set_data(G_OBJECT(row), "page-id", (gpointer)id);
+        g_signal_connect(row, "activated", G_CALLBACK(on_sidebar_row_activated), self);
+        adw_preferences_group_add(ADW_PREFERENCES_GROUP(footer_group), GTK_WIDGET(row));
+    };
+
+    add_footer_row("AboutMe", "network-workgroup-symbolic", "socials");
+    
     // Main initial screen 
     GtkWidget* content_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     AdwNavigationPage* content_page = ADW_NAVIGATION_PAGE(adw_navigation_page_new(content_box, "Content"));

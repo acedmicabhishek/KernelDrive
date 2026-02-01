@@ -19,6 +19,7 @@ sources = files(
   'src/ui/pages/input_page.cpp',
   'src/ui/pages/display_page.cpp',
   'src/ui/pages/store_page.cpp',
+  'src/ui/pages/socials_page.cpp',
   'src/core/sysfs_writer.cpp',
   'src/core/plugin_manager.cpp',
 )
