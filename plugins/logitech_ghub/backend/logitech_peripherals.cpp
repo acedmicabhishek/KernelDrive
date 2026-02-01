@@ -33,7 +33,7 @@ namespace Logitech {
                 if (hdev.connect()) {
                     int dpi = hdev.get_dpi();
                     if (dpi > 0) dev.current_dpi = dpi;
-                    else dev.current_dpi = 1600; 
+                    else dev.current_dpi = 800; 
                     
                     int rate = hdev.get_polling_rate();
                     if (rate > 0) dev.current_rate_ms = rate; 
@@ -44,7 +44,7 @@ namespace Logitech {
                     else dev.max_dpi = 25600;
                     
                 } else {
-                     dev.current_dpi = 1600;
+                     dev.current_dpi = 800;
                      dev.current_rate_ms = 1;
                      dev.max_dpi = 25600;
                 }
