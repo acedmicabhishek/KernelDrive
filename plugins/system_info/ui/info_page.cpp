@@ -22,7 +22,11 @@ struct InfoWidgets {
 
     GtkWidget *net_label;
     GtkWidget *uptime_label;
+
+    guint timeout_id;
 };
+
+
 
 static std::string fmt_bytes(long bytes) {
     if (bytes > 1024 * 1024) return std::to_string(bytes / 1024 / 1024) + " MB/s";
@@ -212,10 +216,15 @@ GtkWidget* InfoPage::create() {
     adw_preferences_group_add(ADW_PREFERENCES_GROUP(dash_group), grid_box);
     adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(dash_group));
 
-    g_timeout_add(1000, update_stats, w);
+    w->timeout_id = g_timeout_add(1000, update_stats, w);
     
     g_object_set_data_full(G_OBJECT(page), "widgets", w, [](gpointer d) {
-        delete (InfoWidgets*)d;
+        InfoWidgets* widgets = (InfoWidgets*)d;
+        if (widgets->timeout_id > 0) {
+            g_source_remove(widgets->timeout_id);
+            widgets->timeout_id = 0;
+        }
+        delete widgets;
     });
 
     update_stats(w);
