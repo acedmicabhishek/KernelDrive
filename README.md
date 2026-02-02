@@ -9,6 +9,11 @@ Modular Linux system control application.
   <img src="image2.png" width="400" />
 </p>
 
+# Installation 
+
+` yay -S kerneldrive `
+
+
 ## Core Features
 
 KernelDrive comes with essential system control modules built-in:
