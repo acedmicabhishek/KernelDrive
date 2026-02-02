@@ -11,7 +11,9 @@ Modular Linux system control application.
 
 # Installation 
 
-```yay -S kerneldrive 
+```
+yay -S kerneldrive 
+
 ```
 
 
