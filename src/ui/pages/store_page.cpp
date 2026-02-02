@@ -14,19 +14,16 @@ struct StorePlugin {
     std::string repo_url;
     std::string author;
 };
-
-// Manual JSON parsing (Robust and simple for this use case)
 static std::string extract_value(const std::string& block, const std::string& key) {
     std::string key_pattern = "\"" + key + "\":";
     size_t pos = block.find(key_pattern);
     if (pos == std::string::npos) return "";
     
     pos += key_pattern.length();
-    // Skip whitespace
     while (pos < block.length() && (block[pos] == ' ' || block[pos] == '\n' || block[pos] == '\t')) pos++;
     
     if (pos >= block.length() || block[pos] != '"') return "";
-    pos++; // Skip opening quote
+    pos++;
     
     size_t end = block.find('"', pos);
     if (end == std::string::npos) return "";
@@ -73,7 +70,6 @@ GtkWidget* kd_store_page_new(void) {
 
     const auto& plugins = PluginManager::get().get_plugins();
     
-    // installed plugins list
     if (plugins.empty()) {
         GtkWidget* row = adw_action_row_new();
         adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), "No plugins loaded");
@@ -180,6 +176,7 @@ GtkWidget* kd_store_page_new(void) {
                                  ADW_TOAST_OVERLAY(gtk_widget_get_ancestor(u->btn, ADW_TYPE_TOAST_OVERLAY)),
                                  adw_toast_new(u->message.c_str())
                              );
+                             PluginManager::get().load_default_locations();
                         } else if (u->status == InstallStatus::Failed) {
                              gtk_widget_set_sensitive(u->btn, true);
                              gtk_button_set_label(GTK_BUTTON(u->btn), "Retry");

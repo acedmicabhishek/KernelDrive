@@ -39,7 +39,7 @@ void PluginInstaller::install_plugin(const std::string& repo_url, const std::str
         std::string home = getenv("HOME");
         fs::path build_base = fs::path(home) / ".cache" / "kerneldrive" / "build";
         fs::path plugin_dir = build_base / slug;
-        fs::path install_dest = fs::path(home) / ".config" / "kerneldrive" / "plugins";
+        fs::path install_dest = fs::path(home) / ".local" / "share" / "kerneldrive" / "plugins";
         
         fs::create_directories(build_base);
         fs::create_directories(install_dest);

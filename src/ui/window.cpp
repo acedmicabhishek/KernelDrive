@@ -224,7 +224,7 @@ static void kd_main_window_init(KdMainWindow* self) {
         }
     });
 
-    auto add_row = [&](AdwPreferencesGroup* group, const char* title, const char* icon_name, const char* id, KdPlugin* plugin = nullptr) {
+    auto add_row = [self](AdwPreferencesGroup* group, const char* title, const char* icon_name, const char* id, KdPlugin* plugin = nullptr) {
         GtkWidget* row = adw_action_row_new();
         adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
         if (icon_name) {
@@ -247,11 +247,12 @@ static void kd_main_window_init(KdMainWindow* self) {
     add_row(ADW_PREFERENCES_GROUP(core_group), "Dependencies", "system-software-install-symbolic", "dependencies");
     add_row(ADW_PREFERENCES_GROUP(core_group), "Plugins Store", "software-store-symbolic", "store");
 
+    PluginManager::get().set_plugin_loaded_callback([self, add_row](KdPlugin* p) {
+         add_row(self->nav_group, p->get_name().c_str(), "application-x-addon-symbolic", "plugin", p);
+    });
 
-    PluginManager::get().load_default_locations(); 
-    for (const auto& plugin : PluginManager::get().get_plugins()) {
-         add_row(self->nav_group, plugin->get_name().c_str(), "application-x-addon-symbolic", "plugin", plugin.get());
-    }
+
+    PluginManager::get().load_default_locations();
 
     // Footer
     GtkWidget* footer_group = adw_preferences_group_new();

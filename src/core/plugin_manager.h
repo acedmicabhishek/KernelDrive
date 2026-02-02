@@ -11,6 +11,10 @@ public:
     using UninstallCallback = std::function<void(KdPlugin*)>;
     void set_uninstall_callback(UninstallCallback cb);
 
+    using PluginLoadedCallback = std::function<void(KdPlugin*)>;
+    void set_plugin_loaded_callback(PluginLoadedCallback cb);
+
+    void load_plugin(const std::string& path);
     void load_from_directory(const std::string& path);
     void load_default_locations();
 
