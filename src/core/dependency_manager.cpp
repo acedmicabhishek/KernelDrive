@@ -51,8 +51,76 @@ void DependencyManager::init_dependencies() {
         "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'",
         false  
     });
-    
 
+    dependencies.push_back({
+        "stress-ng",
+        "CPU stress testing tool (Asus Plugin)",
+        "which stress-ng",
+        "pkexec pacman -S --noconfirm stress-ng",
+        "pkexec apt install -y stress-ng",
+        "pkexec dnf install -y stress-ng",
+        false
+    });
+
+    dependencies.push_back({
+        "lspci",
+        "PCI utilities for hardware detection",
+        "which lspci",
+        "pkexec pacman -S --noconfirm pciutils",
+        "pkexec apt install -y pciutils",
+        "pkexec dnf install -y pciutils",
+        true
+    });
+
+    dependencies.push_back({
+        "gpu_burn",
+        "CUDA GPU stress test tool (Requires NVIDIA CUDA)",
+        "which gpu_burn",
+        "pkexec sh -c 'echo \"This tool requires manual installation (CUDA). Arch: yay -S gpu-burn-git\"'",
+        "pkexec sh -c 'echo \"This tool requires manual installation (CUDA). Debian/Ubuntu: Install nvidia-cuda-toolkit and build from source.\"'",
+        "pkexec sh -c 'echo \"This tool requires manual installation (CUDA).\"'",
+        false
+    });
+
+    dependencies.push_back({
+        "nvidia-smi",
+        "NVIDIA System Management Interface (for GPU Usage)",
+        "which nvidia-smi",
+        "pkexec sh -c 'echo \"Please install proprietary NVIDIA drivers for your distribution.\"'",
+        "pkexec sh -c 'echo \"Please install proprietary NVIDIA drivers for your distribution.\"'",
+        "pkexec sh -c 'echo \"Please install proprietary NVIDIA drivers for your distribution.\"'",
+        false
+    });
+
+    dependencies.push_back({
+        "xrandr",
+        "X11 Display Control (Resolution/Scale)",
+        "which xrandr",
+        "pkexec pacman -S --noconfirm xorg-xrandr",
+        "pkexec apt install -y x11-xserver-utils",
+        "pkexec dnf install -y xorg-x11-server-utils",
+        true
+    });
+
+    dependencies.push_back({
+        "xinput",
+        "X11 Input Device Control (Touchpad/Mouse)",
+        "which xinput",
+        "pkexec pacman -S --noconfirm xorg-xinput",
+        "pkexec apt install -y xinput",
+        "pkexec dnf install -y xorg-x11-apps",
+        true
+    });
+
+    dependencies.push_back({
+        "gsettings",
+        "GNOME Settings Tool (Input Control)",
+        "which gsettings",
+        "pkexec pacman -S --noconfirm glib2",
+        "pkexec apt install -y libglib2.0-bin",
+        "pkexec dnf install -y glib2",
+        true
+    });
 }
 
 std::vector<Dependency> DependencyManager::get_missing_dependencies() {
