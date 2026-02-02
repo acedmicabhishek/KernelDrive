@@ -60,6 +60,9 @@ namespace AsusKeyboard {
         SysfsWriter::write(BASE_PATH + "/" + attr, data);
     }
 
+    static RgbMode g_current_mode = RgbMode::Static;
+    static int g_current_speed = 1;
+
     void apply_rgb(RgbMode mode, Color color, int speed) {
         // Packet Structure
         // [Cmd, Mode, R, G, B, Speed]
@@ -72,11 +75,13 @@ namespace AsusKeyboard {
         packet.push_back(std::clamp(color.r, 0, 255));
         packet.push_back(std::clamp(color.g, 0, 255));
         packet.push_back(std::clamp(color.b, 0, 255));
-        packet.push_back(std::clamp(speed, 0, 255));
-
+        packet.push_back(std::clamp(speed, 0, 2));
+ 
         write_bytes("kbd_rgb_mode", packet);
         
         g_current_color = color;
+        g_current_mode = mode;
+        g_current_speed = speed;
     }
 
     void set_rgb_mode(RgbMode mode, int speed) {
@@ -84,7 +89,15 @@ namespace AsusKeyboard {
     }
     
     void set_rgb_mode_int(int mode) {
-        set_rgb_mode(static_cast<RgbMode>(mode));
+        set_rgb_mode(static_cast<RgbMode>(mode), g_current_speed);
+    }
+    
+    RgbMode get_current_mode() {
+        return g_current_mode;
+    }
+
+    int get_current_speed() {
+        return g_current_speed;
     }
 
     Color get_color() {
@@ -92,8 +105,7 @@ namespace AsusKeyboard {
     }
 
     void set_color(int r, int g, int b) {
-
-        apply_rgb(RgbMode::Static, {r, g, b}, 1);
+        apply_rgb(RgbMode::Static, {r, g, b}, g_current_speed);
     }
 
     bool is_supported() {

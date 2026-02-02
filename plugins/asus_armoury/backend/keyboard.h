@@ -20,6 +20,9 @@ namespace AsusKeyboard {
     int get_max_brightness();
     
     int get_rgb_mode();
+    RgbMode get_current_mode();
+    int get_current_speed();
+    
     void set_rgb_mode(RgbMode mode, int speed = 1);
     
     Color get_color();

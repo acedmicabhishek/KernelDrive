@@ -349,19 +349,44 @@ public:
                 adw_combo_row_set_model(ADW_COMBO_ROW(rgb_row), G_LIST_MODEL(list));
                 
                 // Default to Static
-                adw_combo_row_set_selected(ADW_COMBO_ROW(rgb_row), 0);
+                adw_combo_row_set_selected(ADW_COMBO_ROW(rgb_row), (guint)AsusKeyboard::get_current_mode());
                 
-                g_signal_connect(rgb_row, "notify::selected", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                // Speed Slider
+                GtkWidget* speed_row = adw_action_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(speed_row), "Animation Speed");
+                
+                GtkWidget* speed_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 2, 1);
+                gtk_widget_set_hexpand(speed_scale, TRUE);
+                gtk_scale_set_draw_value(GTK_SCALE(speed_scale), FALSE);
+                gtk_scale_add_mark(GTK_SCALE(speed_scale), 0, GTK_POS_BOTTOM, "Slow");
+                gtk_scale_add_mark(GTK_SCALE(speed_scale), 1, GTK_POS_BOTTOM, "Med");
+                gtk_scale_add_mark(GTK_SCALE(speed_scale), 2, GTK_POS_BOTTOM, "Fast");
+                
+                gtk_range_set_value(GTK_RANGE(speed_scale), AsusKeyboard::get_current_speed());
+                
+                adw_action_row_add_suffix(ADW_ACTION_ROW(speed_row), speed_scale);
+
+                // Mode Change
+                g_signal_connect(rgb_row, "notify::selected", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer data) {
                     guint idx = adw_combo_row_get_selected(ADW_COMBO_ROW(row));
+                    GtkWidget* s_row = GTK_WIDGET(data);
+                    
                     AsusKeyboard::RgbMode m = AsusKeyboard::RgbMode::Static;
                     if (idx == 1) m = AsusKeyboard::RgbMode::Breathing;
                     if (idx == 2) m = AsusKeyboard::RgbMode::Cycle;
                     if (idx == 3) m = AsusKeyboard::RgbMode::Strobe;
                     
-                    AsusKeyboard::set_rgb_mode(m, 1);
+                    AsusKeyboard::set_rgb_mode(m, AsusKeyboard::get_current_speed());
+                    gtk_widget_set_visible(s_row, m != AsusKeyboard::RgbMode::Static);
+                }), speed_row);
+                g_signal_connect(speed_scale, "value-changed", G_CALLBACK(+[](GtkRange* range, gpointer) {
+                    int val = (int)gtk_range_get_value(range);
+                    AsusKeyboard::set_rgb_mode(AsusKeyboard::get_current_mode(), val);
                 }), NULL);
-                
+
                 adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), rgb_row);
+                gtk_widget_set_visible(speed_row, AsusKeyboard::get_current_mode() != AsusKeyboard::RgbMode::Static);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), speed_row);
             
                 GtkWidget* color_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
                 gtk_widget_set_margin_top(color_box, 15);
