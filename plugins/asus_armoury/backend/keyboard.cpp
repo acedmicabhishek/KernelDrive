@@ -1,6 +1,8 @@
 #include "keyboard.h"
 #include "../../../src/core/sysfs_writer.h"
 #include <filesystem>
+#include <vector>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <iostream>
@@ -49,8 +51,40 @@ namespace AsusKeyboard {
         return 0;
     }
 
-    void set_rgb_mode(int mode) {
-        SysfsWriter::write(BASE_PATH + "/kbd_rgb_mode", std::to_string(mode));
+    static void write_bytes(const std::string& attr, const std::vector<uint8_t>& bytes) {
+        std::string data;
+        for (size_t i = 0; i < bytes.size(); ++i) {
+            data += std::to_string(bytes[i]);
+            if (i < bytes.size() - 1) data += " ";
+        }
+        SysfsWriter::write(BASE_PATH + "/" + attr, data);
+    }
+
+    void apply_rgb(RgbMode mode, Color color, int speed) {
+        // Packet Structure
+        // [Cmd, Mode, R, G, B, Speed]
+        // Cmd: 0 = Apply
+        // Mode: 0=Static, 1=Breath, 2=Cycle, 3=Strobe
+        
+        std::vector<uint8_t> packet;
+        packet.push_back(0);
+        packet.push_back(static_cast<uint8_t>(mode));
+        packet.push_back(std::clamp(color.r, 0, 255));
+        packet.push_back(std::clamp(color.g, 0, 255));
+        packet.push_back(std::clamp(color.b, 0, 255));
+        packet.push_back(std::clamp(speed, 0, 255));
+
+        write_bytes("kbd_rgb_mode", packet);
+        
+        g_current_color = color;
+    }
+
+    void set_rgb_mode(RgbMode mode, int speed) {
+        apply_rgb(mode, g_current_color, speed);
+    }
+    
+    void set_rgb_mode_int(int mode) {
+        set_rgb_mode(static_cast<RgbMode>(mode));
     }
 
     Color get_color() {
@@ -58,8 +92,8 @@ namespace AsusKeyboard {
     }
 
     void set_color(int r, int g, int b) {
-        g_current_color = {r, g, b};
-        std::cout << "[AsusKeyboard] RGB Color setting is currently disabled/stubbed." << std::endl;
+
+        apply_rgb(RgbMode::Static, {r, g, b}, 1);
     }
 
     bool is_supported() {

@@ -36,17 +36,17 @@ void DependencyManager::init_dependencies() {
         "which ryzenadj",
         "pkexec sh -c 'pacman -S --noconfirm git cmake base-devel pciutils && "
         "rm -rf /tmp/RyzenAdj && "
-        "git clone https:
+        "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
         "cd /tmp/RyzenAdj && mkdir build && cd build && "
         "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'",
         "pkexec sh -c 'apt install -y git cmake build-essential libpci-dev && "
         "rm -rf /tmp/RyzenAdj && "
-        "git clone https:
+        "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
         "cd /tmp/RyzenAdj && mkdir build && cd build && "
         "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'",
         "pkexec sh -c 'dnf install -y git cmake gcc-c++ pciutils-devel && "
         "rm -rf /tmp/RyzenAdj && "
-        "git clone https:
+        "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
         "cd /tmp/RyzenAdj && mkdir build && cd build && "
         "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'",
         false  

@@ -12,6 +12,7 @@
 #include "backend/visuals.h"
 #include "backend/gpu.h"
 #include "backend/gpu_mux.h"
+#include "backend/gpu_mux.h"
 #include "backend/fan_control.h"
 #include "ui/notification.h"
 #include <gtk/gtk.h>
@@ -334,7 +335,112 @@ public:
 
             adw_action_row_add_suffix(ADW_ACTION_ROW(bl_row), bl_scale);
             adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), bl_row);
-      }
+            
+            
+            // RGB Mode
+            if (AsusKeyboard::has_rgb()) {
+                GtkWidget* rgb_row = adw_combo_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(rgb_row), "RGB Mode");
+                adw_action_row_set_subtitle(ADW_ACTION_ROW(rgb_row), "Lighting Effect");
+                
+                const char* items[] = {"Static", "Breathing", "Color Cycle", "Strobe", NULL};
+                GtkStringList* list = gtk_string_list_new(items);
+                
+                adw_combo_row_set_model(ADW_COMBO_ROW(rgb_row), G_LIST_MODEL(list));
+                
+                // Default to Static
+                adw_combo_row_set_selected(ADW_COMBO_ROW(rgb_row), 0);
+                
+                g_signal_connect(rgb_row, "notify::selected", G_CALLBACK(+[](GObject* row, GParamSpec*, gpointer) {
+                    guint idx = adw_combo_row_get_selected(ADW_COMBO_ROW(row));
+                    AsusKeyboard::RgbMode m = AsusKeyboard::RgbMode::Static;
+                    if (idx == 1) m = AsusKeyboard::RgbMode::Breathing;
+                    if (idx == 2) m = AsusKeyboard::RgbMode::Cycle;
+                    if (idx == 3) m = AsusKeyboard::RgbMode::Strobe;
+                    
+                    AsusKeyboard::set_rgb_mode(m, 1);
+                }), NULL);
+                
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), rgb_row);
+            
+                GtkWidget* color_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+                gtk_widget_set_margin_top(color_box, 15);
+                gtk_widget_set_margin_bottom(color_box, 15);
+                gtk_widget_set_halign(color_box, GTK_ALIGN_CENTER);
+                
+                GtkWidget* grid_label = gtk_label_new("Quick Colors");
+                gtk_widget_add_css_class(grid_label, "dim-label");
+                gtk_box_append(GTK_BOX(color_box), grid_label);
+
+                GtkWidget* flow = gtk_flow_box_new();
+                gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(flow), 4);
+                gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 8);
+                gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
+                gtk_widget_set_halign(flow, GTK_ALIGN_CENTER);
+                
+                struct ColorDef { const char* name; const char* css; int r; int g; int b; };
+                std::vector<ColorDef> colors = {
+                    {"Red",     "background: #FF0000;", 255, 0, 0},
+                    {"Green",   "background: #00FF00;", 0, 255, 0},
+                    {"Blue",    "background: #0000FF;", 0, 0, 255},
+                    {"Cyan",    "background: #00FFFF;", 0, 255, 255},
+                    {"Magenta", "background: #FF00FF;", 255, 0, 255},
+                    {"Yellow",  "background: #FFFF00;", 255, 255, 0},
+                    {"White",   "background: #FFFFFF;", 255, 255, 255},
+                    {"Orange",  "background: #FFA500;", 255, 165, 0}
+                };
+
+                for (const auto& c : colors) {
+                    GtkWidget* btn = gtk_button_new();
+                    gtk_widget_set_size_request(btn, 40, 40);
+                    
+                    GtkCssProvider* provider = gtk_css_provider_new();
+                    std::string css = "button { " + std::string(c.css) + " border-radius: 20px; box-shadow: none; border: 1px solid rgba(0,0,0,0.2); } button:active { opacity: 0.8; }";
+                    gtk_css_provider_load_from_data(provider, css.c_str(), -1);
+                    gtk_style_context_add_provider(gtk_widget_get_style_context(btn), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+                    
+                    gtk_widget_set_tooltip_text(btn, c.name);
+                    
+                    struct ColorData { int r; int g; int b; };
+                    ColorData* cd = new ColorData{c.r, c.g, c.b};
+                    
+                    g_signal_connect_data(btn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer user_data) {
+                        ColorData* data = (ColorData*)user_data;
+                        AsusKeyboard::set_color(data->r, data->g, data->b);
+                    }), cd, [](gpointer data, GClosure*) { delete static_cast<ColorData*>(data); }, (GConnectFlags)0);
+                    
+                    gtk_flow_box_append(GTK_FLOW_BOX(flow), btn);
+                }
+                
+                
+                gtk_box_append(GTK_BOX(color_box), flow);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), color_box);
+
+                GtkWidget* picker_row = adw_action_row_new();
+                adw_preferences_row_set_title(ADW_PREFERENCES_ROW(picker_row), "Custom Color");
+                adw_action_row_set_subtitle(ADW_ACTION_ROW(picker_row), "Pick any color.");
+                
+                GtkWidget* color_btn = gtk_color_button_new();
+                gtk_widget_set_valign(color_btn, GTK_ALIGN_CENTER);
+                
+                GdkRGBA initial_color = {1.0, 0.0, 0.0, 1.0};
+                gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(color_btn), &initial_color);
+
+                g_signal_connect(color_btn, "color-set", G_CALLBACK(+[](GtkColorButton* btn, gpointer) {
+                    GdkRGBA c;
+                    gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(btn), &c);
+                    
+                    int r = (int)(c.red * 255.0);
+                    int g = (int)(c.green * 255.0);
+                    int b = (int)(c.blue * 255.0);
+                    
+                    AsusKeyboard::set_color(r, g, b);
+                }), NULL);
+                
+                adw_action_row_add_suffix(ADW_ACTION_ROW(picker_row), color_btn);
+                adw_preferences_group_add(ADW_PREFERENCES_GROUP(kbd_group), picker_row);
+            }
+        }
 
         struct FanData { GtkWidget* cpu; GtkWidget* gpu; GtkWidget* adv; };
         FanData* fdata = new FanData{cpu_row, gpu_row, adv_switch};

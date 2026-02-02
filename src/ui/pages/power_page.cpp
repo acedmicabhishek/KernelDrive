@@ -250,7 +250,7 @@ static void kd_power_page_init(KdPowerPage* self) {
              install_label = "Build & Install (Source)";
              install_cmd = "pkexec sh -c 'pacman -S --noconfirm git cmake base-devel pciutils && "
                            "rm -rf /tmp/RyzenAdj && "
-                           "git clone https:
+                           "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
                            "cd /tmp/RyzenAdj && mkdir build && cd build && "
                            "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'";
         } else if (distro_id == "ubuntu" || distro_id == "debian" || distro_id == "pop" || distro_id == "linuxmint") {
@@ -263,7 +263,7 @@ static void kd_power_page_init(KdPowerPage* self) {
              install_cmd = "pkexec apt install -y ryzenadj || "
                            "pkexec sh -c 'apt install -y git cmake build-essential libpci-dev && "
                            "rm -rf /tmp/RyzenAdj && "
-                           "git clone https:
+                           "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
                            "cd /tmp/RyzenAdj && mkdir build && cd build && "
                            "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'";
         } else if (distro_id == "fedora") {
