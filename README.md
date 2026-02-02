@@ -19,6 +19,15 @@ KernelDrive comes with essential system control modules built-in:
 -   **Dependencies**: Built-in manager to install required external tools (`ryzenadj`, `stress-ng`, etc.).
 -   **Plugin Store**: Integrated marketplace to discover and install community plugins effortlessly.
 
+## Available Plugins
+
+| Plugin | Description | Repository |
+| :--- | :--- | :--- |
+| **System Info** | Dashboard for CPU, RAM, GPU, and Network monitoring. | [Repo](https://github.com/acedmicabhishek/systemInfoPlugin.git) |
+| **Asus Armoury Control** | Control functionality for Asus ROG/TUF laptops (Fan, RGB, GPU Mux). | [Repo](https://github.com/acedmicabhishek/asusArmouryCrateLinux.git) |
+| **Logitech G-Hub** | DPI, Polling Rate, and RGB control for Logitech peripherals. | [Repo](https://github.com/acedmicabhishek/logitechGhubLinux.git) |
+| **Ryzen Controller** | TDP and Curve Optimizer tuning for Ryzen Mobile processors. | [Repo](https://github.com/acedmicabhishek/ryzenControllerLinux.git) |
+
 ## Build
 
 ```bash
