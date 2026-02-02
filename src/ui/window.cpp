@@ -3,6 +3,7 @@
 #include "pages/power_page.h"
 #include "pages/input_page.h"
 #include "pages/display_page.h"
+#include "pages/dependencies_page.h"
 #include "pages/socials_page.h"
 #include "pages/store_page.h"
 #include <unistd.h>
@@ -49,6 +50,8 @@ static void on_sidebar_row_activated(AdwActionRow* row, KdMainWindow* self) {
         content_widget = kd_input_page_new();
     } else if (g_strcmp0(page_id, "display") == 0) {
         content_widget = kd_display_page_new();
+    } else if (g_strcmp0(page_id, "dependencies") == 0) {
+        content_widget = kd_dependencies_page_new();
     } else if (g_strcmp0(page_id, "store") == 0) {
         content_widget = kd_store_page_new();
     } else if (g_strcmp0(page_id, "socials") == 0) {
@@ -185,12 +188,18 @@ static void kd_main_window_init(KdMainWindow* self) {
     gtk_box_append(GTK_BOX(sidebar_box), sidebar_content);
     gtk_widget_set_vexpand(sidebar_content, TRUE);
 
-    GtkWidget* nav_group_widget = adw_preferences_group_new();
-    self->nav_group = ADW_PREFERENCES_GROUP(nav_group_widget);
+    // Core Group
+    GtkWidget* core_group = adw_preferences_group_new();
+    adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(core_group), "Core");
+    adw_preferences_page_add(ADW_PREFERENCES_PAGE(sidebar_content), ADW_PREFERENCES_GROUP(core_group));
+
+    // Plugins Group
+    GtkWidget* plugins_group_widget = adw_preferences_group_new();
+    self->nav_group = ADW_PREFERENCES_GROUP(plugins_group_widget);
+    adw_preferences_group_set_title(self->nav_group, "Plugins");
     adw_preferences_page_add(ADW_PREFERENCES_PAGE(sidebar_content), self->nav_group);
     
     PluginManager::get().set_uninstall_callback([self](KdPlugin* p) {
-        GtkWidget* child = gtk_widget_get_first_child(GTK_WIDGET(self->nav_group));
         GtkWidget* target_row = nullptr;
         
         auto find_row = [&](auto&& self_lambda, GtkWidget* widget) -> void {
@@ -215,7 +224,7 @@ static void kd_main_window_init(KdMainWindow* self) {
         }
     });
 
-    auto add_row = [&](const char* title, const char* icon_name, const char* id, KdPlugin* plugin = nullptr) {
+    auto add_row = [&](AdwPreferencesGroup* group, const char* title, const char* icon_name, const char* id, KdPlugin* plugin = nullptr) {
         GtkWidget* row = adw_action_row_new();
         adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
         if (icon_name) {
@@ -229,20 +238,19 @@ static void kd_main_window_init(KdMainWindow* self) {
         if (plugin) g_object_set_data(G_OBJECT(row), "plugin-ptr", plugin);
 
         g_signal_connect(row, "activated", G_CALLBACK(on_sidebar_row_activated), self);
-        adw_preferences_group_add(self->nav_group, GTK_WIDGET(row));
+        adw_preferences_group_add(group, GTK_WIDGET(row));
     };
 
-    // Built-in Features
-    add_row("Power", "system-shutdown-symbolic", "power");
-    add_row("Input", "input-keyboard-symbolic", "input");
-    add_row("Display", "video-display-symbolic", "display");
-    add_row("Plugins Store", "software-store-symbolic", "store");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Power", "system-shutdown-symbolic", "power");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Input", "input-keyboard-symbolic", "input");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Display", "video-display-symbolic", "display");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Dependencies", "system-software-install-symbolic", "dependencies");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Plugins Store", "software-store-symbolic", "store");
 
-    // Load Plugins
+
     PluginManager::get().load_default_locations(); 
-
     for (const auto& plugin : PluginManager::get().get_plugins()) {
-         add_row(plugin->get_name().c_str(), "application-x-addon-symbolic", "plugin", plugin.get());
+         add_row(self->nav_group, plugin->get_name().c_str(), "application-x-addon-symbolic", "plugin", plugin.get());
     }
 
     // Footer

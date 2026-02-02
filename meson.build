@@ -11,6 +11,9 @@ gnome = import('gnome')
 gtk_dep = dependency('gtk4')
 libadwaita_dep = dependency('libadwaita-1')
 hidapi_dep = dependency('hidapi-hidraw')
+libdrm_dep = dependency('libdrm')
+xrandr_dep = dependency('xrandr')
+x11_dep = dependency('x11')
 
 sources = files(
   'src/main.cpp',
@@ -18,10 +21,23 @@ sources = files(
   'src/ui/pages/power_page.cpp',
   'src/ui/pages/input_page.cpp',
   'src/ui/pages/display_page.cpp',
+  'src/ui/pages/dependencies_page.cpp',
   'src/ui/pages/store_page.cpp',
   'src/ui/pages/socials_page.cpp',
   'src/core/sysfs_writer.cpp',
   'src/core/plugin_manager.cpp',
+  'src/core/config_manager.cpp',
+  'src/core/display/display_manager.cpp',
+  'src/core/display/backends/hyprland_backend.cpp',
+  'src/core/display/backends/gnome_backend.cpp',
+  'src/core/display/backends/x11_backend.cpp',
+  'src/core/input/input_manager.cpp',
+  'src/core/input/backends/hyprland_input.cpp',
+  'src/core/input/backends/gnome_input.cpp',
+  'src/core/input/backends/x11_input.cpp',
+  'src/core/power/power_manager.cpp',
+  'src/core/power/backends/linux_power.cpp',
+  'src/core/dependency_manager.cpp',
 )
 
 cc = meson.get_compiler('cpp')
@@ -29,7 +45,7 @@ dl_dep = cc.find_library('dl', required: false)
 
 executable('kerneldrive',
   sources,
-  dependencies: [gtk_dep, libadwaita_dep, dl_dep],
+  dependencies: [gtk_dep, libadwaita_dep, dl_dep, libdrm_dep, xrandr_dep, x11_dep],
   install: true,
   export_dynamic: true,
 )
