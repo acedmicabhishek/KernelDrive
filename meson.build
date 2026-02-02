@@ -63,3 +63,7 @@ executable('optimus_helper',
 install_data('data/kerneldrive.desktop',
   install_dir: get_option('datadir') / 'applications'
 )
+
+install_data('data/registry.json',
+  install_dir: get_option('datadir') / 'kerneldrive' / 'data'
+)
