@@ -38,6 +38,7 @@ sources = files(
   'src/core/power/power_manager.cpp',
   'src/core/power/backends/linux_power.cpp',
   'src/core/dependency_manager.cpp',
+  'src/core/plugin_installer.cpp',
 )
 
 cc = meson.get_compiler('cpp')
@@ -50,50 +51,14 @@ executable('kerneldrive',
   export_dynamic: true,
 )
 
-# Plugins
-subdir('plugins/system_info')
-
-shared_module('asus_armoury',
-  [
-    'plugins/asus_armoury/asus_plugin.cpp', 
-    'plugins/asus_armoury/backend/modes.cpp',
-    'plugins/asus_armoury/backend/core.cpp',
-    'plugins/asus_armoury/backend/battery.cpp',
-    'plugins/asus_armoury/backend/display.cpp',
-    'plugins/asus_armoury/backend/stress.cpp',
-    'plugins/asus_armoury/backend/monitor.cpp',
-    'plugins/asus_armoury/backend/brightness.cpp',
-    'plugins/asus_armoury/backend/keyboard.cpp',
-    'plugins/asus_armoury/backend/gpu.cpp',
-    'plugins/asus_armoury/backend/gpu_mux.cpp',
-    'plugins/asus_armoury/backend/visuals.cpp',
-    'plugins/asus_armoury/backend/fan_control.cpp',
-    'plugins/asus_armoury/ui/notification.cpp',
-  ],
-  dependencies: [gtk_dep, libadwaita_dep],
-  install: true,
-  install_dir: get_option('libdir') / 'kerneldrive/plugins'
-)
+# Plugins are now built separately as standalone projects.
+# Their .so files should be placed in ~/.config/kerneldrive/plugins/
 
 executable('optimus_helper',
   'tools/optimus_helper.cpp',
   install: true,
   install_dir: get_option('bindir')
 )
-
-shared_module('logitech_ghub',
-  [
-    'plugins/logitech_ghub/logitech_plugin.cpp',
-    'plugins/logitech_ghub/backend/logitech_peripherals.cpp',
-    'plugins/logitech_ghub/backend/hidpp_driver.cpp',
-    'plugins/logitech_ghub/backend/hidpp20_device.cpp'
-  ],
-  dependencies: [gtk_dep, libadwaita_dep, hidapi_dep],
-  install: true,
-  install_dir: get_option('libdir') / 'kerneldrive/plugins'
-)
-
-subdir('plugins/ryzen_controller')
 
 install_data('data/kerneldrive.desktop',
   install_dir: get_option('datadir') / 'applications'

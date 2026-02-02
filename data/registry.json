@@ -1,0 +1,36 @@
+{
+  "plugins": [
+    {
+      "slug": "system_info",
+      "name": "System Info",
+      "description": "Dashboard for CPU, RAM, GPU, and Network monitoring.",
+      "repo_url": "https://github.com/acedmicabhishek/systemInfoPlugin.git",
+      "author": "acedmicabhishek",
+      "version": "1.0.0"
+    },
+    {
+      "slug": "asus_armoury",
+      "name": "Asus Armoury Crate",
+      "description": "Control functionality for Asus ROG/TUF laptops (Fan, RGB, GPU Mux).",
+      "repo_url": "https://github.com/acedmicabhishek/asusArmouryCrateLinux.git",
+      "author": "acedmicabhishek",
+      "version": "1.0.0"
+    },
+    {
+      "slug": "logitech_ghub",
+      "name": "Logitech G-Hub",
+      "description": "DPI, Polling Rate, and RGB control for Logitech peripherals.",
+      "repo_url": "https://github.com/acedmicabhishek/logitechGhubLinux.git",
+      "author": "acedmicabhishek",
+      "version": "1.0.0"
+    },
+    {
+      "slug": "ryzen_controller",
+      "name": "Ryzen Controller",
+      "description": "TDP and Curve Optimizer tuning for Ryzen Mobile processors.",
+      "repo_url": "https://github.com/acedmicabhishek/ryzenControllerLinux.git",
+      "author": "acedmicabhishek",
+      "version": "1.0.0"
+    }
+  ]
+}
