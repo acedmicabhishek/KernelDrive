@@ -9,8 +9,8 @@
       "version": "1.0.0"
     },
     {
-      "slug": "asus_armoury",
-      "name": "Asus Armoury Crate",
+      "slug": "asus-armoury-control",
+      "name": "Asus Armoury Control",
       "description": "Control functionality for Asus ROG/TUF laptops (Fan, RGB, GPU Mux).",
       "repo_url": "https://github.com/acedmicabhishek/asusArmouryCrateLinux.git",
       "author": "acedmicabhishek",
