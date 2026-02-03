@@ -2,6 +2,17 @@
 
 Modular Linux system control application.
 
+<div align="center">
+
+[![GitHub Release](https://img.shields.io/github/v/release/acedmicabhishek/KernelDrive?label=release&color=orange)](https://github.com/acedmicabhishek/KernelDrive/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/acedmicabhishek/KernelDrive/total?label=downloads&color=green)](https://github.com/acedmicabhishek/KernelDrive/releases)
+[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
+[![AUR version](https://img.shields.io/aur/version/kerneldrive?label=AUR&logo=arch-linux)](https://aur.archlinux.org/packages/kerneldrive)
+[![AUR votes](https://img.shields.io/aur/votes/kerneldrive?color=purple)](https://aur.archlinux.org/packages/kerneldrive)
+[![GitHub stars](https://img.shields.io/github/stars/acedmicabhishek/KernelDrive?style=social)](https://github.com/acedmicabhishek/KernelDrive/stargazers)
+
+</div>
+
 <p align="center">
   <img src="mainImage.png" width="800" />
   <br>
@@ -36,7 +47,27 @@ KernelDrive comes with essential system control modules built-in:
 | **Logitech G-Hub** | DPI, Polling Rate, and RGB control for Logitech peripherals. | [Repo](https://github.com/acedmicabhishek/logitechGhubLinux.git) |
 | **Ryzen Controller** | TDP and Curve Optimizer tuning for Ryzen Mobile processors. | [Repo](https://github.com/acedmicabhishek/ryzenControllerLinux.git) |
 
+
+## Installation
+
+### AUR (Arch User Repository)
+
+You can install KernelDrive from the AUR using your favorite AUR helper (e.g., `yay` or `paru`):
+
+```bash
+yay -S kerneldrive
+```
+
+Or build manually from source:
+
+```bash
+git clone https://aur.archlinux.org/kerneldrive.git
+cd kerneldrive
+makepkg -si
+```
+
 ## Build
+
 
 ```bash
 meson setup build
