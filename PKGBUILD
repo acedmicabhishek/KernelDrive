@@ -1,7 +1,7 @@
 # Maintainer: ACE : acedmicabhishek@gmail.com
 
-pkgname=kernel-drive-git
-pkgver=0.1.0.r0.g3e0affb
+pkgname=kernel-drive
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="A high-performance modular system control app for Arch Linux"
 arch=('x86_64')
