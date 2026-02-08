@@ -2,7 +2,7 @@
 
 pkgname=kernel-drive
 pkgver=0.1.1
-pkgrel=1
+pkgrel=3
 pkgdesc="A high-performance modular system control app for Arch Linux"
 arch=('x86_64')
 url="https://github.com/acedmicabhishek/KernelDrive"
