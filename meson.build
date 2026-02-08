@@ -15,6 +15,9 @@ libdrm_dep = dependency('libdrm')
 xrandr_dep = dependency('xrandr')
 x11_dep = dependency('x11')
 
+pkexec_path = join_paths(get_option('prefix'), get_option('bindir'), 'kerneldrive-pkexec')
+add_project_arguments('-DPKEXEC_PATH="' + pkexec_path + '"', language: 'cpp')
+
 sources = files(
   'src/main.cpp',
   'src/ui/window.cpp',
@@ -66,4 +69,20 @@ install_data('data/kerneldrive.desktop',
 
 install_data('data/registry.json',
   install_dir: get_option('datadir') / 'kerneldrive' / 'data'
+)
+
+conf_data = configuration_data()
+conf_data.set('bindir', join_paths(get_option('prefix'), get_option('bindir')))
+
+configure_file(
+  input: 'data/com.acedmicabhishek.kerneldrive.policy',
+  output: 'com.acedmicabhishek.kerneldrive.policy',
+  configuration: conf_data,
+  install: true,
+  install_dir: get_option('datadir') / 'polkit-1' / 'actions'
+)
+
+install_data('data/kerneldrive-pkexec',
+  install_dir: get_option('bindir'),
+  install_mode: 'rwxr-xr-x'
 )

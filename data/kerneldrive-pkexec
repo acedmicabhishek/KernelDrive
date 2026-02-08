@@ -1,0 +1,12 @@
+#!/bin/bash
+# Arguments: <DISPLAY> <XAUTHORITY> <WAYLAND_DISPLAY> <XDG_RUNTIME_DIR> <DBUS_SESSION_BUS_ADDRESS>
+
+if [ -n "$1" ] && [ "$1" != "_" ]; then export DISPLAY="$1"; fi
+if [ -n "$2" ] && [ "$2" != "_" ]; then export XAUTHORITY="$2"; fi
+if [ -n "$3" ] && [ "$3" != "_" ]; then export WAYLAND_DISPLAY="$3"; fi
+if [ -n "$4" ] && [ "$4" != "_" ]; then export XDG_RUNTIME_DIR="$4"; fi
+if [ -n "$5" ] && [ "$5" != "_" ]; then export DBUS_SESSION_BUS_ADDRESS="$5"; fi
+
+export PATH=$PATH:/usr/sbin:/sbin
+
+exec /usr/bin/kerneldrive

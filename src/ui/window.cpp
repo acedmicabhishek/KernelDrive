@@ -78,6 +78,112 @@ static void kd_main_window_init(KdMainWindow* self) {
 
     // Enforce Root
     if (geteuid() != 0) {
+        static bool tried_elevation = false;
+        if (!tried_elevation) {
+            tried_elevation = true;
+
+            const char* display = getenv("DISPLAY") ? getenv("DISPLAY") : "";
+            const char* xauth = getenv("XAUTHORITY") ? getenv("XAUTHORITY") : "";
+            const char* wayland = getenv("WAYLAND_DISPLAY") ? getenv("WAYLAND_DISPLAY") : "";
+            const char* xdg = getenv("XDG_RUNTIME_DIR") ? getenv("XDG_RUNTIME_DIR") : "";
+            const char* dbus = getenv("DBUS_SESSION_BUS_ADDRESS") ? getenv("DBUS_SESSION_BUS_ADDRESS") : "";
+
+            auto attempt_pkexec = [&]() -> bool {
+                std::cout << "Attempting to elevate using pkexec..." << std::endl;
+                pid_t pid = fork();
+                if (pid == -1) return false;
+                if (pid == 0) {
+#ifdef PKEXEC_PATH
+                    if (access(PKEXEC_PATH, X_OK) == 0) {
+                         execlp("pkexec", "pkexec", PKEXEC_PATH, 
+                                display, xauth, wayland, xdg, dbus, NULL);
+                    }
+#endif
+                    execlp("pkexec", "pkexec", "/usr/bin/kerneldrive-pkexec", 
+                           display, xauth, wayland, xdg, dbus, NULL);
+                    exit(127);
+                }
+                int status;
+                waitpid(pid, &status, 0);
+                if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                    std::cout << "Elevation successful using pkexec." << std::endl;
+                    exit(0);
+                }
+                return false;
+            };
+
+            auto attempt_doas = [&]() -> bool {
+                std::cout << "Attempting to elevate using doas..." << std::endl;
+                pid_t pid = fork();
+                if (pid == -1) return false;
+                if (pid == 0) {
+                    char self_path[PATH_MAX];
+                    ssize_t count = readlink("/proc/self/exe", self_path, PATH_MAX);
+                    if (count != -1) self_path[count] = '\0';
+                    else exit(1);
+                    
+                    std::vector<const char*> args;
+                    args.push_back("doas");
+                    
+                    std::string d_env = std::string("DISPLAY=") + display;
+                    if (strlen(display) > 0) args.push_back(d_env.c_str());
+                    
+                    std::string x_env = std::string("XAUTHORITY=") + xauth;
+                    if (strlen(xauth) > 0) args.push_back(x_env.c_str());
+                    
+                    std::string w_env = std::string("WAYLAND_DISPLAY=") + wayland;
+                    if (strlen(wayland) > 0) args.push_back(w_env.c_str());
+                    
+                    std::string r_env = std::string("XDG_RUNTIME_DIR=") + xdg;
+                    if (strlen(xdg) > 0) args.push_back(r_env.c_str());
+
+                    std::string b_env = std::string("DBUS_SESSION_BUS_ADDRESS=") + dbus;
+                    if (strlen(dbus) > 0) args.push_back(b_env.c_str());
+
+                    args.push_back(self_path);
+                    args.push_back(NULL);
+
+                    execvp("doas", (char* const*)args.data());
+                    exit(127);
+                }
+                int status;
+                waitpid(pid, &status, 0);
+                if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                     std::cout << "Elevation successful using doas." << std::endl;
+                     exit(0);
+                }
+                return false;
+            };
+
+            auto attempt_sudo_cli = [&]() -> bool {
+                std::cout << "Attempting to elevate using sudo CLI..." << std::endl;
+                pid_t pid = fork();
+                if (pid == -1) return false;
+                if (pid == 0) {
+                    char self_path[PATH_MAX];
+                    ssize_t count = readlink("/proc/self/exe", self_path, PATH_MAX);
+                    if (count != -1) self_path[count] = '\0';
+                    else exit(1);
+
+                    execlp("sudo", "sudo", "-E", self_path, NULL);
+                    exit(127);
+                }
+                int status;
+                waitpid(pid, &status, 0);
+                if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                    std::cout << "Elevation successful using sudo CLI." << std::endl;
+                    exit(0);
+                }
+                return false;
+            };
+
+            if (attempt_pkexec()) return;
+            if (attempt_doas()) return;
+            if (attempt_sudo_cli()) return;
+            
+            std::cout << "Automatic elevation failed. Falling back to GUI prompt." << std::endl;
+        }
+
         GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 24);
         gtk_widget_set_halign(box, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(box, GTK_ALIGN_CENTER);
@@ -89,7 +195,7 @@ static void kd_main_window_init(KdMainWindow* self) {
         GtkWidget* title = gtk_label_new("Administrator Privileges Required");
         gtk_widget_add_css_class(title, "title-1");
         
-        GtkWidget* desc = gtk_label_new("KernelDrive needs to access hardware controls.\nPlease enter your password to continue.");
+        GtkWidget* desc = gtk_label_new("KernelDrive needs to access hardware controls.\nPlease enter your password to continue.\n(Requires Sudo)");
         gtk_widget_add_css_class(desc, "body");
         gtk_label_set_wrap(GTK_LABEL(desc), TRUE);
         gtk_label_set_justify(GTK_LABEL(desc), GTK_JUSTIFY_CENTER);
@@ -151,12 +257,19 @@ static void kd_main_window_init(KdMainWindow* self) {
                      pid_t res = waitpid(cd->p, &status, WNOHANG);
                      
                      if (res == 0) {
-                         exit(0);
+                         return G_SOURCE_CONTINUE;
+                     } else if (res == cd->p) {
+                         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+                             exit(0);
+                         } else {
+                             kd_show_toast("Authentication Failed. Incorrect Password?");
+                         }
+                         delete cd;
+                         return G_SOURCE_REMOVE;
                      } else {
-                         kd_show_toast("Authentication Failed. Incorrect Password?");
+                         delete cd;
+                         return G_SOURCE_REMOVE;
                      }
-                     delete cd;
-                     return G_SOURCE_REMOVE;
                  }, d);
              }
         };
