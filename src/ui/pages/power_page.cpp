@@ -1,4 +1,4 @@
-#include "linux_power.h"
+#include "power_page.h"
 #include "../../core/power/power_manager.h"
 #include <vector>
 #include <string>
