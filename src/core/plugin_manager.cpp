@@ -2,6 +2,8 @@
 #include <dlfcn.h>
 #include <filesystem>
 #include <iostream>
+#include <fstream>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -115,9 +117,27 @@ bool PluginManager::uninstall_plugin(KdPlugin* plugin) {
             if (g_uninstall_cb) g_uninstall_cb(plugin);
 
             try {
-                fs::remove(plugin_paths[i]);
+                // Check for CLI manifest
+                fs::path so_path = plugin_paths[i];
+                fs::path manifest_path = so_path.parent_path() / (plugin->get_slug() + ".cli");
+                
+                if (fs::exists(manifest_path)) {
+                    std::ifstream mf(manifest_path);
+                    std::string cli_name;
+                    while (std::getline(mf, cli_name)) {
+                        if (!cli_name.empty()) {
+                            std::string rm_cmd = "pkexec rm /usr/local/bin/" + cli_name;
+                            std::cout << "[PluginManager] Removing CLI: " << cli_name << std::endl;
+                            system(rm_cmd.c_str());
+                        }
+                    }
+                    mf.close();
+                    fs::remove(manifest_path);
+                }
+
+                fs::remove(so_path);
             } catch (const fs::filesystem_error& e) {
-                std::cerr << "Failed to delete plugin file: " << e.what() << std::endl;
+                std::cerr << "Failed to delete plugin files: " << e.what() << std::endl;
                 return false;
             }
             

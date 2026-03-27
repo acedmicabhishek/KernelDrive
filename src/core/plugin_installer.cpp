@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <format>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -81,6 +82,7 @@ void PluginInstaller::install_plugin(const std::string& repo_url, const std::str
         callback(InstallStatus::Installing, "Installing plugin...");
         
         bool found = false;
+        std::vector<fs::path> executables;
         try {
             for (const auto& entry : fs::recursive_directory_iterator(build_dir)) {
                 if (entry.path().extension() == ".so") {
@@ -88,14 +90,50 @@ void PluginInstaller::install_plugin(const std::string& repo_url, const std::str
                     fs::copy_file(entry.path(), dest, fs::copy_options::overwrite_existing);
                     found = true;
                 }
+                // Detect executables: regular files, no extension, and executable permission
+                if (entry.is_regular_file() && 
+                    entry.path().extension().empty() &&
+                    entry.path().filename().string().find('.') == std::string::npos &&
+                    (fs::status(entry.path()).permissions() & fs::perms::owner_exec) != fs::perms::none) {
+                    // Skip meson internal files
+                    std::string fname = entry.path().filename().string();
+                    if (fname != "build.ninja" && fname != "compile_commands" && 
+                        fname.find("meson") == std::string::npos) {
+                        executables.push_back(entry.path());
+                    }
+                }
             }
         } catch (const std::exception& e) {
             callback(InstallStatus::Failed, std::string("Installation copy failed: ") + e.what());
             return;
         }
 
+        // Install CLI executables system-wide and record them
+        std::vector<std::string> installed_cli;
+        for (const auto& exe : executables) {
+            std::string install_cmd = std::format("pkexec cp {} /usr/local/bin/{}", 
+                                                   exe.string(), exe.filename().string());
+            std::string exe_output;
+            if (run_command(install_cmd, exe_output)) {
+                std::cout << "[PluginInstaller] Installed CLI: " << exe.filename() << std::endl;
+                installed_cli.push_back(exe.filename().string());
+            }
+        }
+
+        // Save manifest of installed CLI tools next to the .so
+        if (!installed_cli.empty()) {
+            fs::path manifest = install_dest / (slug + ".cli");
+            std::ofstream mf(manifest);
+            for (const auto& name : installed_cli) mf << name << "\n";
+        }
+
         if (found) {
-            callback(InstallStatus::Success, "Plugin installed successfully!");
+            std::string msg = "Plugin installed successfully!";
+            if (!executables.empty()) {
+                msg += "\nCLI tools installed:";
+                for (const auto& e : executables) msg += " " + e.filename().string();
+            }
+            callback(InstallStatus::Success, msg);
         } else {
             callback(InstallStatus::Failed, "Build completed but no .so file found.");
         }
