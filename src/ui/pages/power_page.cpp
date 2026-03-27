@@ -2,7 +2,6 @@
 #include "../../core/power/power_manager.h"
 #include <vector>
 #include <string>
-#include <string>
 #include <gtk/gtk.h>
 #include <adwaita.h>
 
@@ -177,13 +176,7 @@ static void kd_power_page_init(KdPowerPage* self) {
         adw_action_row_set_subtitle(ADW_ACTION_ROW(self->governor_row), "No governors found or access denied.");
     }
     
-    g_signal_connect(self->governor_row, "notify::selected", G_CALLBACK(+[](GObject* obj, GParamSpec*, gpointer) {
-         guint idx = adw_combo_row_get_selected(ADW_COMBO_ROW(obj));
-         GListModel* model = adw_combo_row_get_model(ADW_COMBO_ROW(obj));
-         if (!model) return;
-         const char* s = gtk_string_list_get_string(GTK_STRING_LIST(model), idx);
-         if (s) PowerManager::get().set_cpu_governor(s);
-    }), NULL);
+    g_signal_connect(self->governor_row, "notify::selected", G_CALLBACK(on_governor_selected), NULL);
 
     adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), GTK_WIDGET(self->governor_row));
 
