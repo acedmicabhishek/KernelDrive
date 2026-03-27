@@ -1,12 +1,8 @@
-#include "power_page.h"
-#include "../../core/sysfs_writer.h"
+#include "linux_power.h"
 #include "../../core/power/power_manager.h"
 #include <vector>
 #include <string>
 #include <filesystem>
-#include <iostream>
-#include <fstream>
-#include <thread>
 #include <gtk/gtk.h>
 #include <adwaita.h>
 
@@ -205,118 +201,6 @@ static void kd_power_page_init(KdPowerPage* self) {
     }), NULL);
 
     adw_preferences_group_add(ADW_PREFERENCES_GROUP(group), GTK_WIDGET(self->governor_row));
-
-    
-    GtkWidget* tdp_group = adw_preferences_group_new();
-    adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(tdp_group), "Power Limits");
-    gtk_box_append(GTK_BOX(box), tdp_group);
-
-    
-    GtkWidget* tdp_row = adw_spin_row_new_with_range(5.0, 80.0, 1.0); 
-    adw_preferences_row_set_title(ADW_PREFERENCES_ROW(tdp_row), "Package TDP Limit");
-    
-    if (PowerManager::get().is_rapl_supported()) {
-        adw_action_row_set_subtitle(ADW_ACTION_ROW(tdp_row), "Limit generic package power (Watts). Set high for unlimited.");
-        
-        
-        int current_tdp = PowerManager::get().get_tdp_limit();
-        adw_spin_row_set_value(ADW_SPIN_ROW(tdp_row), (double)current_tdp);
-        
-        g_signal_connect(tdp_row, "notify::value", G_CALLBACK(+[](GObject* obj, GParamSpec*, gpointer) {
-            double v = adw_spin_row_get_value(ADW_SPIN_ROW(obj));
-            PowerManager::get().set_tdp_limit((int)v);
-        }), NULL);
-    } else {
-        gtk_widget_set_sensitive(tdp_row, FALSE);
-        adw_action_row_set_subtitle(ADW_ACTION_ROW(tdp_row), "Function not supported on your system (Missing RAPL/RyzenAdj).");
-        
-        
-        
-        std::ifstream os_release("/etc/os-release");
-        std::string line, distro_id;
-        while (std::getline(os_release, line)) {
-            if (line.find("ID=") == 0) {
-                distro_id = line.substr(3);
-                
-                if (!distro_id.empty() && distro_id.front() == '"') distro_id = distro_id.substr(1, distro_id.size()-2);
-            }
-        }
-        
-        std::string install_cmd = "";
-        std::string install_label = "Install Support";
-        
-        if (distro_id == "arch" || distro_id == "manjaro" || distro_id == "endeavouros") {
-             
-             install_label = "Build & Install (Source)";
-             install_cmd = "pkexec sh -c 'pacman -S --noconfirm git cmake base-devel pciutils && "
-                           "rm -rf /tmp/RyzenAdj && "
-                           "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
-                           "cd /tmp/RyzenAdj && mkdir build && cd build && "
-                           "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'";
-        } else if (distro_id == "ubuntu" || distro_id == "debian" || distro_id == "pop" || distro_id == "linuxmint") {
-             
-             
-             
-             
-             
-             
-             install_cmd = "pkexec apt install -y ryzenadj || "
-                           "pkexec sh -c 'apt install -y git cmake build-essential libpci-dev && "
-                           "rm -rf /tmp/RyzenAdj && "
-                           "git clone https://github.com/FlyGoat/RyzenAdj.git /tmp/RyzenAdj && "
-                           "cd /tmp/RyzenAdj && mkdir build && cd build && "
-                           "cmake -DCMAKE_BUILD_TYPE=Release .. && make && make install'";
-        } else if (distro_id == "fedora") {
-             install_cmd = "pkexec dnf install -y ryzenadj"; 
-        }
-        
-        if (!install_cmd.empty()) {
-            GtkWidget* install_btn = gtk_button_new_with_label(install_label.c_str());
-            gtk_widget_set_valign(install_btn, GTK_ALIGN_CENTER);
-            gtk_widget_add_css_class(install_btn, "suggested-action");
-            
-            
-            
-            
-            
-            GtkWidget* install_row = adw_action_row_new();
-            adw_preferences_row_set_title(ADW_PREFERENCES_ROW(install_row), "Missing Dependencies");
-            adw_action_row_set_subtitle(ADW_ACTION_ROW(install_row), ("Install 'ryzenadj' for " + distro_id).c_str());
-            adw_action_row_add_suffix(ADW_ACTION_ROW(install_row), install_btn);
-            adw_preferences_group_add(ADW_PREFERENCES_GROUP(tdp_group), install_row);
-            
-            
-            struct InstallData { std::string cmd; GtkWidget* btn; };
-            InstallData* idata = new InstallData{install_cmd, install_btn};
-            g_object_set_data_full(G_OBJECT(install_btn), "install_data", idata, [](gpointer d){ delete (InstallData*)d; });
-            
-            g_signal_connect(install_btn, "clicked", G_CALLBACK(+[](GtkButton* btn, gpointer) {
-                InstallData* d = (InstallData*)g_object_get_data(G_OBJECT(btn), "install_data");
-                gtk_button_set_label(btn, "Installing...");
-                gtk_widget_set_sensitive(GTK_WIDGET(btn), FALSE);
-                
-                
-                
-                
-                
-                std::thread([cmd = d->cmd, btn_ptr = GTK_WIDGET(btn)]() {
-                    if (system(cmd.c_str()) != 0) { }
-                    
-                    
-                    g_idle_add(+[](gpointer data) -> gboolean {
-                        GtkWidget* b = (GtkWidget*)data;
-                        if (GTK_IS_WIDGET(b)) {
-                            gtk_button_set_label(GTK_BUTTON(b), "Restart App");
-                            gtk_widget_set_sensitive(b, TRUE);
-                        }
-                        return G_SOURCE_REMOVE;
-                    }, btn_ptr);
-                }).detach();
-            }), NULL);
-        }
-    }
-    
-    adw_preferences_group_add(ADW_PREFERENCES_GROUP(tdp_group), tdp_row);
 
     adw_status_page_set_child(ADW_STATUS_PAGE(status_page), box);
 }

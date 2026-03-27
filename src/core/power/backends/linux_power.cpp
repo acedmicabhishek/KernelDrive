@@ -90,7 +90,6 @@ PowerProfileInfo LinuxPowerBackend::get_profile_info() {
 
 void LinuxPowerBackend::set_profile(
     [[maybe_unused]] const std::string &profile) {
-  // ACPI platform_profile removed as requested
 }
 
 std::vector<std::string> LinuxPowerBackend::get_cpu_governors() {
@@ -106,106 +105,6 @@ std::vector<std::string> LinuxPowerBackend::get_cpu_governors() {
     }
   }
   return govs;
-}
-
-static std::string find_powercap_package_path() {
-
-  std::string path =
-      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_power_limit_uw";
-  if (fs::exists(path))
-    return "/sys/class/powercap/intel-rapl/intel-rapl:0";
-
-  if (fs::exists(
-          "/sys/class/powercap/intel-rapl:0/constraint_0_power_limit_uw"))
-    return "/sys/class/powercap/intel-rapl:0";
-
-  std::string base = "/sys/class/powercap";
-  if (fs::exists(base)) {
-    for (const auto &entry : fs::directory_iterator(base)) {
-
-      std::string name_path = entry.path().string() + "/name";
-      if (fs::exists(name_path)) {
-        std::ifstream f(name_path);
-        std::string name;
-        f >> name;
-
-        if (name.find("package") != std::string::npos ||
-            name.find("domain") != std::string::npos) {
-          if (fs::exists(entry.path().string() +
-                         "/constraint_0_power_limit_uw")) {
-            return entry.path().string();
-          }
-        }
-      }
-    }
-  }
-  return "";
-}
-
-long LinuxPowerBackend::get_power_limit_uw() {
-
-  std::string base = find_powercap_package_path();
-  if (!base.empty()) {
-    std::string p = base + "/constraint_0_power_limit_uw";
-    return safe_stol(read_file(p));
-  }
-
-  if (fs::exists("/usr/bin/ryzenadj") ||
-      fs::exists("/usr/local/bin/ryzenadj")) {
-    // We cannot reliably read the current limit from ryzenadj without parsing.
-    // Return -1 to allow the manager to use the configuration fallback.
-    return -1;
-  }
-
-  return -1;
-}
-
-long LinuxPowerBackend::get_max_power_limit_uw() {
-
-  std::string base = find_powercap_package_path();
-  if (!base.empty()) {
-
-    std::string p = base + "/constraint_0_max_power_uw";
-    if (fs::exists(p))
-      return safe_stol(read_file(p));
-
-    p = base + "/max_power_uw";
-    if (fs::exists(p))
-      return safe_stol(read_file(p));
-  }
-
-  if (fs::exists("/usr/bin/ryzenadj") ||
-      fs::exists("/usr/local/bin/ryzenadj")) {
-    return 80000000;
-  }
-
-  return 65000000;
-}
-
-void LinuxPowerBackend::set_power_limit_uw(long uw) {
-
-  std::string base = find_powercap_package_path();
-  if (!base.empty()) {
-    std::string p = base + "/constraint_0_power_limit_uw";
-    SysfsWriter::write(p, std::to_string(uw));
-
-    std::string en = base + "/enabled";
-    if (fs::exists(en))
-      SysfsWriter::write(en, "1");
-    return;
-  }
-
-  if (fs::exists("/usr/bin/ryzenadj") ||
-      fs::exists("/usr/local/bin/ryzenadj")) {
-    long mw = uw / 1000;
-    std::string cmd = "pkexec ryzenadj --stapm-limit=" + std::to_string(mw) +
-                      " --fast-limit=" + std::to_string(mw) +
-                      " --slow-limit=" + std::to_string(mw) +
-                      " >/dev/null 2>&1 &";
-    if (system(cmd.c_str()) != 0) {
-      // Handle error if needed
-    }
-  }
 }
 
 std::string LinuxPowerBackend::read_file(const fs::path &p) {

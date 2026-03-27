@@ -44,11 +44,6 @@ void PowerManager::apply_stored_settings() {
       }
     }
   }
-
-  int tdp = cfg.get_int("Power", "tdp_limit", 0);
-  if (tdp > 0) {
-    set_tdp_limit(tdp);
-  }
 }
 
 void PowerManager::set_profile(const std::string &profile) {
@@ -102,37 +97,4 @@ std::vector<std::string> PowerManager::get_available_governors() {
   if (backend)
     return backend->get_cpu_governors();
   return {};
-}
-
-bool PowerManager::is_rapl_supported() {
-  if (!backend)
-    return false;
-  return backend->get_power_limit_uw() != -1;
-}
-
-void PowerManager::set_tdp_limit(int watts) {
-  if (!backend)
-    return;
-
-  long uw;
-  if (watts <= 0) {
-
-    uw = backend->get_max_power_limit_uw();
-  } else {
-    uw = (long)watts * 1000000;
-  }
-
-  backend->set_power_limit_uw(uw);
-  ConfigManager::get().set_int("Power", "tdp_limit", watts);
-}
-
-int PowerManager::get_tdp_limit() {
-  if (!backend)
-    return 0;
-  long uw = backend->get_power_limit_uw();
-  if (uw <= 0) {
-
-    return ConfigManager::get().get_int("Power", "tdp_limit", 15);
-  }
-  return (int)(uw / 1000000);
 }
