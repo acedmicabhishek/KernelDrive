@@ -2,7 +2,7 @@
 #include "../../core/power/power_manager.h"
 #include <vector>
 #include <string>
-#include <filesystem>
+#include <string>
 #include <gtk/gtk.h>
 #include <adwaita.h>
 
@@ -17,21 +17,6 @@ G_DEFINE_FINAL_TYPE(KdPowerPage, kd_power_page, ADW_TYPE_BIN)
 
 
 
-static void apply_governor_to_all_cpus(const char* governor) {
-    namespace fs = std::filesystem;
-    std::string base_path = "/sys/devices/system/cpu/";
-    if (!fs::exists(base_path)) return;
-
-    for (const auto& entry : fs::directory_iterator(base_path)) {
-        std::string filename = entry.path().filename().string();
-        if (filename.rfind("cpu", 0) == 0 && std::isdigit(filename[3])) {
-             std::string path = entry.path().string() + "/cpufreq/scaling_governor";
-             if (fs::exists(path)) {
-                 SysfsWriter::write(path, governor);
-             }
-        }
-    }
-}
 
 static void on_governor_selected(AdwComboRow* row, [[maybe_unused]] GParamSpec* pspec, [[maybe_unused]] gpointer user_data) {
     guint selected_idx = adw_combo_row_get_selected(row);
@@ -40,7 +25,7 @@ static void on_governor_selected(AdwComboRow* row, [[maybe_unused]] GParamSpec* 
 
     const char* governor = gtk_string_list_get_string(GTK_STRING_LIST(model), selected_idx);
     if (governor) {
-        apply_governor_to_all_cpus(governor);
+        PowerManager::get().set_cpu_governor(governor);
     }
 }
 
