@@ -7,3 +7,7 @@ compile_commands.json
 *.so
 KernelDrive.md
 features.md 
+
+.cache
+.github
+.idea
