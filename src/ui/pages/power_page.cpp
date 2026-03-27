@@ -16,7 +16,7 @@ G_DEFINE_FINAL_TYPE(KdPowerPage, kd_power_page, ADW_TYPE_BIN)
 
 
 
-// this will be our universal gov chnager for profiling because it is just dependent on wriritng file.
+
 static void apply_governor_to_all_cpus(const char* governor) {
     namespace fs = std::filesystem;
     std::string base_path = "/sys/devices/system/cpu/";
