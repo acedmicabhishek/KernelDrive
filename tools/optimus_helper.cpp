@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 

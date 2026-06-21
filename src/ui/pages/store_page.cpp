@@ -14,6 +14,8 @@ struct StorePlugin {
     std::string repo_url;
     std::string author;
 };
+
+static bool g_use_dev_branch = false;
 static std::string extract_value(const std::string& block, const std::string& key) {
     std::string key_pattern = "\"" + key + "\":";
     size_t pos = block.find(key_pattern);
@@ -125,6 +127,16 @@ GtkWidget* kd_store_page_new(void) {
     adw_preferences_group_set_title(ADW_PREFERENCES_GROUP(browse_group), "Web Store (GitHub Registry)");
     adw_preferences_page_add(ADW_PREFERENCES_PAGE(page), ADW_PREFERENCES_GROUP(browse_group));
 
+    GtkWidget* branch_row = adw_switch_row_new();
+    adw_preferences_row_set_title(ADW_PREFERENCES_ROW(branch_row), "Developer Branch");
+    adw_action_row_set_subtitle(ADW_ACTION_ROW(branch_row),
+        "Install from 'dev' instead of 'main' (latest, may be unstable)");
+    adw_switch_row_set_active(ADW_SWITCH_ROW(branch_row), g_use_dev_branch);
+    g_signal_connect(branch_row, "notify::active", G_CALLBACK(+[](GObject* o, GParamSpec*, gpointer) {
+        g_use_dev_branch = adw_switch_row_get_active(ADW_SWITCH_ROW(o));
+    }), nullptr);
+    adw_preferences_group_add(ADW_PREFERENCES_GROUP(browse_group), branch_row);
+
     auto store_plugins = parse_registry("data/registry.json");
     if (store_plugins.empty()) store_plugins = parse_registry("/usr/share/kerneldrive/data/registry.json"); 
 
@@ -161,7 +173,8 @@ GtkWidget* kd_store_page_new(void) {
                 gtk_widget_set_sensitive(GTK_WIDGET(btn), false);
                 gtk_button_set_label(GTK_BUTTON(btn), "Installing...");
 
-                PluginInstaller::get().install_plugin(d->url, d->slug, [b = GTK_WIDGET(btn)](InstallStatus s, std::string msg) {
+                std::string branch = g_use_dev_branch ? "dev" : "main";
+                PluginInstaller::get().install_plugin(d->url, d->slug, branch, [b = GTK_WIDGET(btn)](InstallStatus s, std::string msg) {
                     
                     struct UpdateData { GtkWidget* btn; InstallStatus status; std::string message; };
                     UpdateData* ud = new UpdateData{b, s, msg};

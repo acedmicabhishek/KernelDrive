@@ -6,6 +6,7 @@
 #include <memory>
 #include <format>
 #include <fstream>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
@@ -33,9 +34,24 @@ bool PluginInstaller::run_command(const std::string& cmd, std::string& output) {
     return (pclose(pipe.release()) == 0);
 }
 
-void PluginInstaller::install_plugin(const std::string& repo_url, const std::string& slug, 
+static bool is_safe_branch(const std::string& b) {
+    if (b.empty() || b.size() > 100) return false;
+    if (b.front() == '-') return false;
+    for (char c : b) {
+        if (!(std::isalnum(static_cast<unsigned char>(c)) ||
+              c == '_' || c == '-' || c == '.' || c == '/')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void PluginInstaller::install_plugin(const std::string& repo_url, const std::string& slug,
+                                     const std::string& branch,
                                      std::function<void(InstallStatus, std::string)> callback) {
-    
+
+    std::string safe_branch = is_safe_branch(branch) ? branch : "main";
+
     std::thread([=, this]() {
         std::string home = getenv("HOME");
         fs::path build_base = fs::path(home) / ".cache" / "kerneldrive" / "build";
@@ -52,7 +68,8 @@ void PluginInstaller::install_plugin(const std::string& repo_url, const std::str
         }
 
         std::string output;
-        std::string clone_cmd = std::format("git clone --depth 1 {} {}", repo_url, plugin_dir.string());
+        std::string clone_cmd = std::format("git clone --depth 1 --branch {} -- {} {}",
+                                            safe_branch, repo_url, plugin_dir.string());
         if (!run_command(clone_cmd, output)) {
             callback(InstallStatus::Failed, "Failed to clone repository.\n" + output);
             return;

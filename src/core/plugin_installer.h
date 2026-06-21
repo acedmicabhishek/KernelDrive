@@ -15,7 +15,8 @@ enum class InstallStatus {
 class PluginInstaller {
 public:
     static PluginInstaller& get();
-    void install_plugin(const std::string& repo_url, const std::string& slug, 
+    void install_plugin(const std::string& repo_url, const std::string& slug,
+                        const std::string& branch,
                         std::function<void(InstallStatus, std::string)> callback);
 
 private:

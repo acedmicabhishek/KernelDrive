@@ -1,8 +1,6 @@
 #include "sysfs_writer.h"
 #include <fstream>
 #include <iostream>
-#include <cstdlib>
-#include <format>
 
 std::optional<std::string> SysfsWriter::read(const std::string& path) {
     std::ifstream file(path);
@@ -16,17 +14,16 @@ std::optional<std::string> SysfsWriter::read(const std::string& path) {
 }
 
 bool SysfsWriter::write(const std::string& path, const std::string& value) {
-    {
-        std::ofstream file(path);
-        if (file.is_open()) {
-            file << value;
-            if (file.good()) {
-                return true;
-            }
-        }
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        std::cerr << "SysfsWriter: cannot open " << path << " for writing" << std::endl;
+        return false;
     }
-    std::string cmd = std::format("pkexec sh -c 'echo \"{}\" | tee {} > /dev/null'", value, path);
-    int result = std::system(cmd.c_str());
-    
-    return result == 0;
+    file << value;
+    file.flush();
+    if (!file.good()) {
+        std::cerr << "SysfsWriter: failed to write '" << value << "' to " << path << std::endl;
+        return false;
+    }
+    return true;
 }

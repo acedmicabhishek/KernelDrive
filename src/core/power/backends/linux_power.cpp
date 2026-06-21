@@ -85,11 +85,25 @@ std::vector<BatteryInfo> LinuxPowerBackend::get_batteries() {
 
 PowerProfileInfo LinuxPowerBackend::get_profile_info() {
   PowerProfileInfo info;
+
+  const std::string base = "/sys/firmware/acpi/";
+  std::string choices = remove_newline(read_file(base + "platform_profile_choices"));
+  if (!choices.empty()) {
+    std::stringstream ss(choices);
+    std::string item;
+    while (ss >> item) {
+      info.available_profiles.push_back(item);
+    }
+  }
+
+  info.active_profile = remove_newline(read_file(base + "platform_profile"));
   return info;
 }
 
-void LinuxPowerBackend::set_profile(
-    [[maybe_unused]] const std::string &profile) {
+void LinuxPowerBackend::set_profile(const std::string &profile) {
+  if (profile.empty())
+    return;
+  SysfsWriter::write("/sys/firmware/acpi/platform_profile", profile);
 }
 
 std::vector<std::string> LinuxPowerBackend::get_cpu_governors() {
