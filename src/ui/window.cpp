@@ -6,6 +6,7 @@
 #include "pages/dependencies_page.h"
 #include "pages/socials_page.h"
 #include "pages/store_page.h"
+#include "pages/settings_page.h"
 #include <unistd.h>
 #include <iostream>
 #include <vector>
@@ -54,6 +55,8 @@ static void on_sidebar_row_activated(AdwActionRow* row, KdMainWindow* self) {
         content_widget = kd_dependencies_page_new();
     } else if (g_strcmp0(page_id, "store") == 0) {
         content_widget = kd_store_page_new();
+    } else if (g_strcmp0(page_id, "settings") == 0) {
+        content_widget = kd_settings_page_new();
     } else if (g_strcmp0(page_id, "socials") == 0) {
         content_widget = SocialsPage::create();
     } else {
@@ -245,7 +248,7 @@ static void kd_main_window_init(KdMainWindow* self) {
     add_row(ADW_PREFERENCES_GROUP(core_group), "Input", "input-keyboard-symbolic", "input");
     add_row(ADW_PREFERENCES_GROUP(core_group), "Display", "video-display-symbolic", "display");
     add_row(ADW_PREFERENCES_GROUP(core_group), "Dependencies", "system-software-install-symbolic", "dependencies");
-    add_row(ADW_PREFERENCES_GROUP(core_group), "Plugins Store", "software-store-symbolic", "store");
+    add_row(ADW_PREFERENCES_GROUP(core_group), "Plugins Store", "system-software-install-symbolic", "store");
 
     PluginManager::get().set_plugin_loaded_callback([self, add_row](KdPlugin* p) {
          add_row(self->nav_group, p->get_name().c_str(), "application-x-addon-symbolic", "plugin", p);
@@ -274,6 +277,7 @@ static void kd_main_window_init(KdMainWindow* self) {
         adw_preferences_group_add(ADW_PREFERENCES_GROUP(footer_group), GTK_WIDGET(row));
     };
 
+    add_footer_row("Settings", "emblem-system-symbolic", "settings");
     add_footer_row("AboutMe", "network-workgroup-symbolic", "socials");
     
     // Main initial screen 

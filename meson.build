@@ -8,6 +8,11 @@ project('KernelDrive', ['cpp', 'c'],
 
 gnome = import('gnome')
 
+add_project_arguments(
+  '-DKD_VERSION="' + meson.project_version() + '"',
+  language: 'cpp',
+)
+
 gtk_dep = dependency('gtk4')
 libadwaita_dep = dependency('libadwaita-1')
 hidapi_dep = dependency('hidapi-hidraw')
@@ -24,6 +29,7 @@ sources = files(
   'src/ui/pages/dependencies_page.cpp',
   'src/ui/pages/store_page.cpp',
   'src/ui/pages/socials_page.cpp',
+  'src/ui/pages/settings_page.cpp',
   'src/core/sysfs_writer.cpp',
   'src/core/plugin_manager.cpp',
   'src/core/config_manager.cpp',
@@ -39,6 +45,7 @@ sources = files(
   'src/core/power/backends/linux_power.cpp',
   'src/core/dependency_manager.cpp',
   'src/core/plugin_installer.cpp',
+  'src/core/service_manager.cpp',
 )
 
 cc = meson.get_compiler('cpp')
